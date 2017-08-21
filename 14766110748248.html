@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         postgres主从配置 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">postgres主从配置</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2016-07-16T17:44:34+08:00" itemprop="datePublished">2016/7/16</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <h4 id="toc_0">好久没有写文章了，由于生产需要，将postgres的主从配置研习了一遍。为了方便起见，使用docker来简化操作。物理机上的操作类同。</h4>
+
+<span id="more"></span><!-- more -->
+
+<p>1、 创建两个postgres的container，一个做主，一个做从。</p>
+
+<pre><code>docker run -d -v /data1:/data -e PGDATA=/data -e POSTGRES_PASSWORD=PASSWORD1 --name db_master postgres postgres
+docker run -d -v /data2:/data -e PGDATA=/data -e POSTGRES_PASSWORD=PASSWORD2 --name db_slave postgres postgres
+</code></pre>
+
+<p>2、 在master节点创建repl用户</p>
+
+<pre><code>docker exec -it db_master psql -U postgres -c &quot;CREATE USER rep REPLICATION LOGIN CONNECTION LIMIT 1 ENCRYPTED PASSWORD &#39;PASSWORD_FOR_REP&#39;;&quot;
+</code></pre>
+
+<p>3、 修改master数据库的配置。<code>/data1/pg_hba.conf</code></p>
+
+<pre><code>host    replication     rep     IP_address_of_slave/32   md5
+</code></pre>
+
+<p>4、 修改master数据库的配置。<code>/data1/postgresql.conf</code></p>
+
+<pre><code>listen_addresses = &#39;*&#39;
+wal_level = &#39;hot_standby&#39;
+archive_mode = on
+archive_command = &#39;cd .&#39;
+max_wal_senders = 1
+hot_standby = on
+</code></pre>
+
+<p>5、 重启数据库备用</p>
+
+<pre><code>docker restart db_master
+</code></pre>
+
+<p>6、 先停掉从节点slave</p>
+
+<pre><code>docker stop db_slave
+</code></pre>
+
+<p>7、 修改slave配置。<code>/data2/pg_hba.conf</code></p>
+
+<pre><code>host    replication     rep     IP_address_of_master/32  md5
+</code></pre>
+
+<p>8、 修改slave配置。<code>/data2/postgresql.conf</code></p>
+
+<pre><code>listen_addresses = &#39;*&#39;
+wal_level = &#39;hot_standby&#39;
+archive_mode = on
+archive_command = &#39;cd .&#39;
+max_wal_senders = 1
+hot_standby = on
+</code></pre>
+
+<p>9、 主数据库初始化</p>
+
+<pre><code>    # 进入备份状态
+    docker exec -it db_master psql -U postgres -c &quot;select pg_start_backup(&#39;initial_backup&#39;);&quot;
+
+    rsync -cva --inplace /data1/ /data2/
+
+    # rsync -cva --inplace /data1/ slave_IP_address:/data2/
+
+    # 退出备份状态
+    docker exec -it db_master psql -U postgres -c &quot;select pg_stop_backup();&quot;
+</code></pre>
+
+<p>10、 从数据库slave恢复策略<code>/data2/recovery.conf</code></p>
+
+<pre><code>standby_mode = &#39;on&#39;
+primary_conninfo = &#39;host=master_IP_address port=5432 user=rep password=yourpassword&#39;
+trigger_file = &#39;/tmp/postgresql.trigger.5432&#39;
+</code></pre>
+
+<p>11、 从数据库启动</p>
+
+<pre><code>docker start db_slave
+</code></pre>
+
+<p>注意：第10步作用是当master挂掉后，可以让slave变身master，且变的可写。但第10步的风险是可能导致master同步失败，比较稳妥的做法是：</p>
+
+<pre><code>1.master 先进入备份状态
+2.rsync同步数据
+3.slave 启动
+4.master退出备份状态
+</code></pre>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

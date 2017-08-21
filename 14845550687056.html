@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         VPS下使用aria2进行BT下载及其WebUi配置 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">VPS下使用aria2进行BT下载及其WebUi配置</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2015-07-01T16:24:28+08:00" itemprop="datePublished">2015/7/1</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <h4 id="toc_0">VPS的性能过剩，目前仅用来做google跳转及扶墙，感觉有点浪费。由于迅雷的离线越来越不给力，使用aria2，开始折腾远程下载。。。</h4>
+
+<span id="more"></span><!-- more -->
+
+<p>1、各种c++，automake等库的下载，请直接参考上一篇<a href="http://1024coder.com/2014/12/05/2014-12-05-Vps_Shadowsocks_Nginx/">文章</a>，这里不再赘述，免得有凑字数的嫌疑。</p>
+
+<p>2、下载aria2的最新版本，并编译：</p>
+
+<pre><code class="language-bash">cd /usr/local/src
+wget http://softlayer-dal.dl.sourceforge.net/project/aria2/stable/aria2-1.18.8/aria2-1.18.8.tar.gz
+tar -zxvf aria2-1.18.8.tar.gz
+cd aria2-1.18.8/
+./configure --prefix=/usr
+make
+make install
+</code></pre>
+
+<p>3、安装完毕后用以下命令查询使用方法：<code>aria2c -h</code></p>
+
+<p>4、指定一个下载目录，就用<code>/home/Downloads</code>好了：</p>
+
+<pre><code class="language-bash">cd /home
+mkdir Downloads
+touch aria2.session  //创建session用于保存未下载完的进度
+touch aria2.conf  //conf配置文件
+</code></pre>
+
+<p>5、编辑配置文件<code>aria2.conf</code></p>
+
+<pre><code class="language-bash">#This is a configuration of aria2    
+　
+#允许rpc
+enable-rpc=true
+#允许所有来源, web界面跨域权限需要
+rpc-allow-origin-all=true
+#允许非外部访问
+rpc-listen-all=true
+#RPC端口, 仅当默认端口被占用时修改
+#rpc-listen-port=6800
+　
+#用户名
+#rpc-user=username
+#密码
+#rpc-passwd=passwd
+　
+#最大同时下载数(任务数), 路由建议值: 3
+max-concurrent-downloads=3
+#断点续传
+continue=true
+#同服务器连接数
+max-connection-per-server=3
+#最小文件分片大小, 下载线程数上限取决于能分出多少片, 对于小文件重要
+min-split-size=20M
+#单文件最大线程数, 路由建议值: 5
+split=5
+#下载速度限制
+max-overall-download-limit=0
+#单文件速度限制
+max-download-limit=0
+#上传速度限制
+max-overall-upload-limit=0
+#单文件速度限制
+max-upload-limit=0
+#断开速度过慢的连接
+#lowest-speed-limit=0
+#运行覆盖已存在文件
+allow-overwrite=true
+#验证用，需要1.16.1之后的release版本
+#referer=*
+　
+input-file=/home/Downloads/aria2.session
+save-session=/home/Downloads/aria2.session
+#定时保存会话，需要1.16.1之后的release版
+save-session-interval=60
+ 　
+#文件保存路径, 默认为当前启动位置
+dir=/home/Downloads
+#文件缓存, 使用内置的文件缓存, 如果你不相信Linux内核文件缓存和磁盘内置缓存时使用, 需要1.16及以上版本
+#disk-cache=0
+#另一种Linux文件缓存方式, 使用前确保您使用的内核支持此选项, 需要1.15及以上版本(?)
+#enable-mmap=true
+#文件预分配, 能有效降低文件碎片, 提高磁盘性能. 缺点是预分配时间较长
+#所需时间 none &lt; falloc ? trunc &lt;&lt; prealloc, falloc和trunc需要文件系统和内核支持
+file-allocation=none
+　
+#启用本地节点查找
+bt-enable-lpd=true
+#添加额外的tracker
+#bt-tracker=&lt;URI&gt;,…
+#单种子最大连接数
+#bt-max-peers=55
+#强制加密, 防迅雷必备
+#bt-require-crypto=true
+#当下载的文件是一个种子(以.torrent结尾)时, 自动下载BT
+follow-torrent=true
+#BT监听端口, 当端口屏蔽时使用
+#listen-port=6881-6999
+　
+#不确定是否需要，为保险起见，need more test
+enable-dht=true
+bt-enable-lpd=true
+enable-peer-exchange=true
+#修改特征
+user-agent=uTorrent/2210(25130)
+peer-id-prefix=-UT2210-
+#修改做种设置, 允许做种
+seed-ratio=0
+#保存会话
+force-save=true
+bt-hash-check-seed=true
+bt-seed-unverified=true
+bt-save-metadata=true
+</code></pre>
+
+<p>6、以配置文件启动：</p>
+
+<pre><code class="language-bash">aria2c --conf-path=/home/Downloads/aria2.conf -D //在最后添加aria2启动参数，-D表示后台运行
+</code></pre>
+
+<p>7、添加开机启动项：</p>
+
+<pre><code class="language-bash">vim /etc/rc.local
+aria2c --conf-path=/home/Downloads/aria2.conf -D //在最后添加aria2启动参数，-D表示后台运行
+</code></pre>
+
+<p>8、选择一款合适的WebUI，推荐<a href="https://github.com/binux/yaaw">yaaw</a>或<a href="https://github.com/ziahamza/webui-aria2">webui-aria2</a></p>
+
+<p>9、可以直接打开上述webui的index.html文件并配置地址后使用，也可以将其托管到服务端的nginx，介绍一下后者：</p>
+
+<pre><code class="language-bash">//先将选用的webui的文件夹移动到nginx根目录的html文件夹下，并将其重命名为xiazai，然后在nginx.conf中做如下配置
+
+location /xiazai {
+  root html;
+  index index.html;
+}
+
+//这样就可以通过http://host/xiazai 来直接管理啦^_^
+</code></pre>
+
+<h4 id="toc_1">引用参考：</h4>
+
+<blockquote>
+<p>1、<a href="http://blog.ainhaato.moe/aria2-download-in-centos.html">http://blog.ainhaato.moe/aria2-download-in-centos.html</a> </p>
+</blockquote>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

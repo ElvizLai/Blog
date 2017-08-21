@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         database - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <div class="home">
+            <ul class="entry-list">
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/10/19">2016/10/19</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845365865254.html">postgres over 用法</a></h2>
+                        <div itemprop="description">
+                            <p>总结下 postgres 中 over 的用法。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/10/9">2016/10/9</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766097423984.html">HBase golang初探</a></h2>
+                        <div itemprop="description">
+                            <p>最近要进行大数据相关的任务，牛刀小试，先将最基础的HBase搭建并实践起来。本文借用docker，快速搭建HBase基础环境，并使用go结合thrift调用相关API进行数据操作。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/7/16">2016/7/16</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766110748248.html">postgres主从配置</a></h2>
+                        <div itemprop="description">
+                            <h4 id="toc_0">好久没有写文章了，由于生产需要，将postgres的主从配置研习了一遍。为了方便起见，使用docker来简化操作。物理机上的操作类同。</h4>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/3/1">2016/3/1</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845521346247.html">数据字典导出备忘</a></h2>
+                        <div itemprop="description">
+                            <p>遇到需要导出数据字典的情况，PowerDesign的导出方式不再细表。其实在有备注的情况下，可以直接从数据库中导出相应的字典。</p>
+
+<pre><code class="language-sql">SELECT  A.TABLE_NAME AS &quot;表名&quot;, A.COLUMN_NAME AS &quot;字段名&quot;, 
+DECODE(A.CHAR_LENGTH, 0, DECODE(A.DATA_SCALE, NULL, A.DATA_TYPE, A.DATA_TYPE||&#39;(&#39;||A.DATA_PRECISION||&#39;,&#39;||A.DATA_SCALE||&#39;)&#39;),
+A.DATA_TYPE||&#39;(&#39;||A.CHAR_LENGTH||&#39;)&#39;) as &quot;字段类型&quot;,A.DATA_DEFAULT AS &quot;默认值&quot;,
+A.NULLABLE AS &quot;能否为空&quot;, B.comments AS &quot;备注&quot;
+FROM sys.user_tab_columns A, sys.user_col_comments B
+WHERE A.table_name=B.table_name AND A.COLUMN_NAME=B.COLUMN_NAME AND A.TABLE_NAME IN (select table_name from user_tables)
+ORDER BY A.TABLE_NAME
+</code></pre>
+
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2015/12/18">2015/12/18</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845523386570.html">MySQL主从配置</a></h2>
+                        <div itemprop="description">
+                            <p>记录下mysql的主从配置方案。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2015/11/4">2015/11/4</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845530183421.html">Mongodb docker实战</a></h2>
+                        <div itemprop="description">
+                            <h4 id="toc_0">尝试将博客整体迁移到docker容器中，记录一下整个迁移过程。</h4>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2015/11/2">2015/11/2</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845534984853.html">MongoDB分片实战</a></h2>
+                        <div itemprop="description">
+                            <p>什么时候需要分片:<br/>
+a.机器的磁盘不够用了<br/>
+b.单个mongod已经不能满足些数据的性能需要了<br/>
+c.想将大量数据放在内存中提高性能<br/>
+一般来说,先要从不分片开始,然后在需要的时候将其转换成分片</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+            </ul>
+            <p class="paging">
+                 
+            </p>
+        </div>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         Mongodb docker实战 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">Mongodb docker实战</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2015-11-04T15:50:18+08:00" itemprop="datePublished">2015/11/4</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <h4 id="toc_0">尝试将博客整体迁移到docker容器中，记录一下整个迁移过程。</h4>
+
+<span id="more"></span><!-- more -->
+
+<p>1、创建mongodb的docker数据卷 路径为/data/mongodb<br/>
+<code>docker create -v /data/mongodb --name mongo_data busybox</code></p>
+
+<p>2、制作mongod的Dockerfile</p>
+
+<pre><code>FROM ubuntu:latest
+# Add official apt source to the sources list
+RUN apt-key adv --keyserver hkp://keyserver.ubuntu.com:80 --recv 7F0CEB10
+RUN echo &quot;deb http://repo.mongodb.org/apt/ubuntu trusty/mongodb-org/3.0 multiverse&quot; | sudo tee /etc/apt/sources.list.d/mongodb-org-3.0.list
+
+# Install MongoDB
+RUN apt-get update
+RUN apt-get install -y mongodb-org
+
+CMD rm /data/mongodb/mongod.lock
+
+EXPOSE 27017
+ENTRYPOINT [&quot;usr/bin/mongod&quot;]
+</code></pre>
+
+<p>构建image： <code>docker build -t mongod .</code></p>
+
+<p>3、数据迁移 挂载本地目录/data/db 到一个临时container中，映射目录为mnt</p>
+
+<pre><code>docker run --rm -it -v /data/db:/mnt --volumes-from mongo_data busybox
+</code></pre>
+
+<p>然后将mnt路径下的数据文件拷贝到/data/mongodb下</p>
+
+<p>4、启动mongod服务</p>
+
+<pre><code>docker run -d -p 27017:27017 --volumes-from mongo_data --name mongo_server mongod --smallfiles --dbpath /data/mongodb --auth
+</code></pre>
+
+<p>5、将启动的mongod链接到blog app所在的容器中：</p>
+
+<p>5.1、先构建blog app<br/>
+修改app配置文件的数据库链接地址为：<code>mongo_server:27017</code></p>
+
+<pre><code>FROM busybox:latest
+ADD ./blog /blog
+EXPOSE 10010
+</code></pre>
+
+<p>构建image：<code>docker build -t blog .</code></p>
+
+<p>5.2、运行blog container</p>
+
+<pre><code>docker run -d -p 127.0.0.1:10010:10010 --link=mongo_server:db --name blog blog /blog/mblog
+</code></pre>
+
+<p>bingo 在内网就可以通过127.0.0.1:10010来访问blog了</p>
+
+<p>6、nginx配置相关（略）</p>
+
+<p>相关参数解释说明：</p>
+
+<pre><code>-d 创建一个在后台执行的容器
+-rm 创建一个临时容器，容器退出后自动删除，不可与-d同用
+-p 对container内的端口与主机进行端口映射
+-v 数据卷
+--volumes-from 挂载数据卷
+--link 联接另外一个container
+</code></pre>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         WebApp文件上传札记 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">WebApp文件上传札记</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2015-10-20T16:18:34+08:00" itemprop="datePublished">2015/10/20</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>项目中遇到了webapp页面需要上传多个文件的问题，本着干哪行爱一行的原则（路人甲:魂淡，这个跟原题没有任何关系吧？……<sup><sup>:原谅我摘要凑字数的行为吧。。。），弄清原理，总结分析一下。</sup></sup></p>
+
+<span id="more"></span><!-- more -->
+
+<p>1、常规方案：通过form表单提交来实现。<br/>
+web页面中这样写</p>
+
+<pre><code class="language-javascript">&lt;form method=&quot;post&quot; action=&quot;http://localhost/upload&quot; enctype=&quot;multipart/form-data&quot;&gt;
+     &lt;input type=&quot;text&quot; name=&quot;desc&quot;&gt;
+     &lt;input type=&quot;file&quot; name=&quot;pic&quot;&gt;
+ &lt;/form&gt;
+</code></pre>
+
+<p>浏览器会发送以下数据：</p>
+
+<pre><code class="language-bash">POST /upload HTTP/1.1
+User-Agent: Paw
+Accept-Language: zh-cn,zh;q=0.5
+Accept-Charset: GBK,utf-8;q=0.7,*;q=0.7
+Connection: keep-alive
+Content-Length: 60408
+Content-Type:multipart/form-data; boundary=ZnGpDtePMx0KrHh_G0X99Yef9r8JZsRJSXC
+Host: 127.0.0.1
+ 
+--ZnGpDtePMx0KrHh_G0X99Yef9r8JZsRJSXC
+Content-Disposition: form-data;name=&quot;desc&quot;
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+ 
+[......][......][......][......]...........................
+
+--ZnGpDtePMx0KrHh_G0X99Yef9r8JZsRJSXC
+Content-Disposition: form-data;name=&quot;pic&quot;; filename=&quot;photo.jpg&quot;
+Content-Type: application/octet-stream
+Content-Transfer-Encoding: binary
+
+[图片二进制数据]
+
+--ZnGpDtePMx0KrHh_G0X99Yef9r8JZsRJSXC--
+</code></pre>
+
+<p>简要的分析下上传的数据，最前面的一段是HTTP header，之后则是Entity，而此时的Entity也比之前要复杂一些。根据RFC 1867定义，我们需要选择一段数据作为“分割边界”(就是Header中的boundary)，这个“边界数据”不能在要传输的内容中出现，一般来说使用一段从概率上“几乎不可能”的数据即可。 不同浏览器的实现不同，每次post浏览器都会生成一个随机的30-40位长度的随机字符串。具体的实现过程我们不表，知道其原理及这个boundary的作用即可。</p>
+
+<p>选择了这个边界之后，浏览器便把它放在Content-Type中传递给服务器，服务器根据此边界解析数据。数据根据boundary划分段，每一段便是一项数据。(每个field被分成小部分，而且包含一个value是&quot;form-data&quot;的&quot;Content-Disposition&quot;的头部；一个&quot;name&quot;属性对应field的ID,等等，文件的话包括一个filename)<br/>
+IE和Chrome在filename的选择策略上有所不同，前者是文件的完整路径，而后者则仅仅是文件名。<br/>
+数据内容以两条横线结尾，并同样以一个换行结束。在网络协议中一般都以连续的CR、LF（即\r、\n，或0x0D、Ox0A）字符作为换行，这与Windows的标准一致。如果您使用其他操作系统，则需要考虑它们的换行符。Header中的Content-length 指的是所有数据的长度。</p>
+
+<p>好了，那么问题来了，如何在服务端中接收相应的数据呢？</p>
+
+<p>这种方式传送到服务的数据由MultipartForm来负责接收。对于golang来讲，MultipartForm包含两个属性File用来指名传输的文件，Value用来指名传输的文本</p>
+
+<pre><code class="language-text">Value:map[string][]string
+File:map[string][]*FileHeader
+</code></pre>
+
+<p>拿Value来举例说明，如果表单中存在多个输入文本域，name分别为id1，id2；对应的值为123，abc，则接收到的value应该是这个样子的：<code>map[id1:[123],id2:[abc]]</code>;如果两个输入文本域的name都是id1，则收到的value长这样<code>map[id1:[123,abc]]</code>这个顺序按照表单中的顺序进行排序。文件也是如此。</p>
+
+<p>OK，总结一下，golang中，接收这类数据应该这样写：</p>
+
+<pre><code class="language-golang">func (this *Uploader) Post() {
+     req := this.Ctx.Request
+
+     fmt.Println(req.MultipartForm)
+
+     //只会取值，不会取文件，当传输的是multipart时与req.Form取到的值相同
+     fmt.Println(req.MultipartForm.Value)
+
+     fmt.Println(req.MultipartForm.File)//只会取文件，不会取值
+
+     //取表单中name为pic对应的文件，如果不存在，则为nil
+     fmt.Println(req.MultipartForm.File[&quot;pic&quot;]==nil)
+
+     fmt.Println(req.MultipartForm.Value[&quot;desc&quot;][0])//取值
+
+     fmt.Println(req.MultipartForm.File[&quot;pic&quot;][0].Filename)//文件名称
+     fmt.Println(req.MultipartForm.File[&quot;pic&quot;][0].Header)//对应表单中Header
+     file, _ := req.MultipartForm.File[&quot;pic&quot;][0].Open()//打开文件
+     defer file.Close()
+
+     file2Bytes,_:=ioutil.ReadAll(file)//读取相应的文件
+
+     fmt.Println(file2Bytes)
+
+     this.Ctx.WriteString(fmt.Sprint(this.Ctx.Request))
+}
+</code></pre>
+
+<p>小tips：</p>
+
+<pre><code class="language-text">根据Header及文件名的后缀来判断文件类型起始并不准确。精确的做法是通过读取文件的前两位组合来判断其类型。
+常见的图片对应的值为：
+     picJpg = &quot;255216&quot;
+     picPng = &quot;13780&quot;
+     picBmp = &quot;6677&quot;
+     picGif = &quot;7173&quot;
+
+</code></pre>
+
+<p>2、非常规方案：待续</p>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

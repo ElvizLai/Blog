@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         golang - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <div class="home">
+            <ul class="entry-list">
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2017/3/2">2017/3/2</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14884282048242.html">golang client cert相关</a></h2>
+                        <div itemprop="description">
+                            <p>尝试构建微信支付相关的模块，按照微信的安全要求，需要使用指定证书进行 https 通信，记录下遇到的问题及安全方面相关的事宜。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/10/9">2016/10/9</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766097423984.html">HBase golang初探</a></h2>
+                        <div itemprop="description">
+                            <p>最近要进行大数据相关的任务，牛刀小试，先将最基础的HBase搭建并实践起来。本文借用docker，快速搭建HBase基础环境，并使用go结合thrift调用相关API进行数据操作。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/9/16">2016/9/16</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766109567964.html">基于grpc的微服务实践</a></h2>
+                        <div itemprop="description">
+                            <h2 id="toc_0">简介</h2>
+
+<p>近一两年来，微服务架构已经成为热门话题（<a href="http://microservices.io/index.html">microservices.io</a>)，与传统的一体化应用架构相比，微服务架构在开发、测试、部署方面都有众多吸引人之处，越来越多没有历史包袱的新项目都启用微服务架构的模式来开发。</p>
+
+<p>我们这个团队经过深入思考之后，决定在一起美这个APP的后端开发中，选择<a href="http://www.golang.org">go</a>作为开发语言，采用微服务模式来实现，经过近半年的实践，形成了一些心得，简单总结后分享出来，希望能够给大家一些帮助。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/4/13">2016/4/13</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766121755274.html">go sql 之 Query</a></h2>
+                        <div itemprop="description">
+                            <p>1、使用tx时，rows没有close是否会导致有未被释放的数据库连接？<br/>
+当最后执行tx.Commit()或tx.Rollback()时，相应的连接会被关闭。不会存在未被释放的情况。但仍然建议养成关闭的好习惯。</p>
+
+<p>2、rows.Err()的作用是什么？<br/>
+Err()的相关注释是这样写的：Err returns the error, if any, that was encountered during iteration.<br/>
+但请注意，这些错误，仅与迭代过程中rows错误相关，比如在下一个Next()时，数据库出问题了，或者tx已经结束，tx发生错误。<br/>
+与Scan()处产生的错误没有任何关联。<br/>
+所以，这两部分错误应该单独分别处理。</p>
+
+<p>3、rows.Next()中进行tx.Exec(update)操作？<br/>
+如果rows.Next()是由tx发起的，update语句中包含$1转译，则会报错。此时update相关，应该放到Next循环之外进行。<br/>
+如果进行无转移update，则允许该操作。<br/>
+如果rows.Next()是有DB发起的，则以上操作都是允许的。</p>
+
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/4/7">2016/4/7</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766122451393.html">[go基础总结]——bytes包</a></h2>
+                        <div itemprop="description">
+                            <p>总结下bytes包中的各操作。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/4/3">2016/4/3</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766124024042.html">grpc over tls</a></h2>
+                        <div itemprop="description">
+                            <p>grpc本身可以工作于常规的tcp模式，但出于数据交换的保密性及安全角度考虑，在其上加一层tls也是极好的。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/4/2">2016/4/2</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766125154205.html">go 编译时注入</a></h2>
+                        <div itemprop="description">
+                            <pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+)
+
+var DEBUG = &quot;NO&quot;
+
+func main() {
+    fmt.Printf(&quot;DEBUG is %q\n&quot;, DEBUG)
+}
+</code></pre>
+
+<p>使用ldflags动态注入：</p>
+
+<pre><code>go build -ldflags &#39;-X main.DEBUG=YES&#39; test.go
+</code></pre>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/2/24">2016/2/24</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845522344116.html">gRPC实战</a></h2>
+                        <div itemprop="description">
+                            <h4 id="toc_0"><a href="http://www.grpc.io" title="gRPC">gRPC</a>是Google出品的一款基于<a href="https://developers.google.com/protocol-buffers/" title="Protobuf">Protobuf</a>与HTTP/2的高性能开源RPC通信框架。</h4>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/2/6">2016/2/6</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845521808276.html">go reflect 反射探究</a></h2>
+                        <div itemprop="description">
+                            <blockquote>
+<p>反射在计算机的概念里是指一段程序审查自身结构的能力，主要通过类型进行审查。它是元编程的一种形式，同样也是引起混乱的重大来源。</p>
+</blockquote>
+
+<p>但同时，合理利用反射也为我们编程提供了非常灵活的操作方式及trick，让程序更好的运行。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2015/11/6">2015/11/6</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845524801245.html">JSONP札记</a></h2>
+                        <div itemprop="description">
+                            <p>web开发中数据的跨域传送一直让人苦恼，JSONP的出现，为web跨域传输提供了一把利器!</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+            </ul>
+            <p class="paging">
+                 
+                <a href="golang_1.html">Next</a> 
+            </p>
+        </div>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

@@ -1,0 +1,1838 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title><![CDATA[1024coder]]></title>
+  <link href="1024coder.com/atom.xml" rel="self"/>
+  <link href="1024coder.com/"/>
+  <updated>2017-08-21T12:33:54+08:00</updated>
+  <id>1024coder.com/</id>
+  <author>
+    <name><![CDATA[]]></name>
+  </author>
+  <generator uri="http://www.coderforart.com/">CoderForArt</generator>
+  
+  <entry>
+    <title type="html"><![CDATA[Ubuntu 内核升级 + tcp_bbr 开启]]></title>
+    <link href="1024coder.com/15032841145588.html"/>
+    <updated>2017-08-21T10:55:14+08:00</updated>
+    <id>1024coder.com/15032841145588.html</id>
+    <content type="html">
+<![CDATA[<p>TCP 连接中，由于需要维持连接的可靠性，引入了拥塞控制和流量管理的方法。Google BBR 就是谷歌公司（非官方）提出的一套开源 TCP 拥塞控制的算法。在最新的 linux 4.9 及以上的内核版本中已被采用。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>由于开启 tcp_bbr 需要 kernel 4.9+，所以，需要先查看下系统的内核是否支持。</p>
+
+<pre><code>uname -r
+</code></pre>
+
+<p>1、如果内核小于 4.9，那么需要先升级内核</p>
+
+<pre><code>wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v4.12.8/linux-headers-4.12.8-041208_4.12.8-041208.201708161815_all.deb
+
+wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v4.12.8/linux-headers-4.12.8-041208-generic_4.12.8-041208.201708161815_amd64.deb
+
+wget http://kernel.ubuntu.com/~kernel-ppa/mainline/v4.12.8/linux-image-4.12.8-041208-generic_4.12.8-041208.201708161815_amd64.deb
+</code></pre>
+
+<p>1.1、内核安装、更新系统引导文件并重启</p>
+
+<pre><code>sudo dpkg -i linux-*.deb
+sudo update-grub
+sudo reboot
+</code></pre>
+
+<p>2.1、TCP_BBR确认</p>
+
+<p>执行 <code>lsmod | grep bbr</code>，如果结果中没有 tcp_bbr 的话就先执行</p>
+
+<pre><code>modprobe tcp_bbr
+echo &quot;tcp_bbr&quot; &gt;&gt; /etc/modules-load.d/modules.conf
+</code></pre>
+
+<p>执行</p>
+
+<pre><code>echo &quot;net.core.default_qdisc=fq&quot; &gt;&gt; /etc/sysctl.conf
+echo &quot;net.ipv4.tcp_congestion_control=bbr&quot; &gt;&gt; /etc/sysctl.conf
+</code></pre>
+
+<p>保存生效</p>
+
+<pre><code>sysctl -p
+</code></pre>
+
+<p>执行</p>
+
+<pre><code>sysctl net.ipv4.tcp_available_congestion_control
+sysctl net.ipv4.tcp_congestion_control
+</code></pre>
+
+<p>如果结果都有 bbr, 则证明你的内核已开启 bbr</p>
+
+<p>看到有 tcp_bbr 模块即说明bbr已启动</p>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[golang client cert相关]]></title>
+    <link href="1024coder.com/14884282048242.html"/>
+    <updated>2017-03-02T12:16:44+08:00</updated>
+    <id>1024coder.com/14884282048242.html</id>
+    <content type="html">
+<![CDATA[<p>尝试构建微信支付相关的模块，按照微信的安全要求，需要使用指定证书进行 https 通信，记录下遇到的问题及安全方面相关的事宜。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>按照微信的文档，他提供了4份文件，分别是：*.p12, *_cert.pem, *_key.pem, *ca.pem</p>
+
+<p>其中 *ca.pem 用于环境不具备 <code>ca-certificates</code> 时手动加载证书时使用。比如纯净的alpine下。这种情况一般 docker 较常见，但现在第三方接口基本已经 https 化，构建docker时会添加ca lib。</p>
+
+<p>不多说，上代码。</p>
+
+<pre><code class="language-golang">var client *http.Client
+
+func init() {
+    fb, err := ioutil.ReadFile(&quot;apiclient_cert.p12&quot;)
+    if err != nil {
+        panic(err)
+    }
+
+    b, err := pkcs12.ToPEM(fb, &quot;mchId&quot;) // the password is mchId
+    if err != nil {
+        panic(err)
+    }
+
+    if len(b) != 2 {
+        panic(errors.New(&quot;check p12, len not match&quot;))
+    }
+
+    cert, err := tls.X509KeyPair(pem.EncodeToMemory(b[0]), pem.EncodeToMemory(b[1]))
+    if err != nil {
+        panic(err)
+    }
+
+    // Load client cert using pem is not safe.
+    //cert, err := tls.LoadX509KeyPair(&quot;apiclient_cert.pem&quot;, &quot;apiclient_key.pem&quot;)
+    //if err != nil {
+    //  panic(err)
+    //}
+
+    // Load CA cert
+    caCert, err := ioutil.ReadFile(&quot;rootca.pem&quot;)
+    if err != nil {
+        panic(err)
+    }
+
+    caCertPool := x509.NewCertPool()
+    caCertPool.AppendCertsFromPEM(caCert)
+
+    // Setup HTTPS client
+    tlsConfig := &amp;tls.Config{
+        Certificates: []tls.Certificate{cert},
+        RootCAs:      caCertPool,
+    }
+    tlsConfig.BuildNameToCertificate()
+    transport := &amp;http.Transport{TLSClientConfig: tlsConfig}
+
+    client = &amp;http.Client{Transport: transport}
+}
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[postgres over 用法]]></title>
+    <link href="1024coder.com/14845365865254.html"/>
+    <updated>2017-01-16T11:16:26+08:00</updated>
+    <id>1024coder.com/14845365865254.html</id>
+    <content type="html">
+<![CDATA[<p>总结下 postgres 中 over 的用法。</p>
+
+<span id="more"></span><!-- more -->
+
+<pre><code>func() OVER( [PRITITION BY col1] ORDER BY col2 [DESC ] )
+</code></pre>
+
+<p>常用窗口函数汇总：</p>
+
+<pre><code>row_number(): 从当前开始，不间断,如1，2，3，4，5，6
+rank() :从当前开始，会间断，如1，2，2，4，5，6
+dense_rank():从当前开始不间断，但会重复，如1，2，2，3，4，5
+percent_rank()：从当前开始，计算在分组中的比例，如0，0.25，0.25，0.75，1，0，1 从0-1不断地循环
+cume_dist()：当前行的排序除以分组的数量,如分组有4行，则值为0.25，0.5，0.75，1
+ntile(num_buckets integer)：从1到当前值，除以分组的的数量，尽可能使分布平均
+lag(value any [, offset integer [, default any ]])：偏移量函数，取滞后值,如lag(column_name,2,0)表示字段偏移量为2，没有则用default值代替，这里是0，不写默认是null
+lead(value any [, offset integer [, default any ]])：偏移量函数，取提前值,类上
+first_value(value any)：返回窗口框架中的第一个值
+last_value(value any)：返回窗口框架中的最后一个值
+nth_value(value any, nth integer)：返回窗口框架中的指定值，如nth_value(salary,2),则表示返回字段salary的第二个窗口函数值
+</code></pre>
+
+<!-- more -->
+
+<p>假设有如下的数据表：</p>
+
+<table>
+<thead>
+<tr>
+<th>depname</th>
+<th>empno</th>
+<th>salary</th>
+<th>enroll_date</th>
+</tr>
+</thead>
+
+<tbody>
+<tr>
+<td>develop</td>
+<td>10</td>
+<td>5200</td>
+<td>2007-08-01</td>
+</tr>
+<tr>
+<td>sales</td>
+<td>1</td>
+<td>5000</td>
+<td>2006-10-01</td>
+</tr>
+<tr>
+<td>personnel</td>
+<td>5</td>
+<td>3500</td>
+<td>2007-12-10</td>
+</tr>
+<tr>
+<td>sales</td>
+<td>4</td>
+<td>4800</td>
+<td>2007-08-08</td>
+</tr>
+<tr>
+<td>sales</td>
+<td>6</td>
+<td>5500</td>
+<td>2007-01-02</td>
+</tr>
+<tr>
+<td>personnel</td>
+<td>2</td>
+<td>3900</td>
+<td>2006-12-23</td>
+</tr>
+<tr>
+<td>develop</td>
+<td>7</td>
+<td>4200</td>
+<td>2008-01-01</td>
+</tr>
+<tr>
+<td>develop</td>
+<td>9</td>
+<td>4500</td>
+<td>2008-01-01</td>
+</tr>
+<tr>
+<td>sales</td>
+<td>3</td>
+<td>4800</td>
+<td>2007-08-01</td>
+</tr>
+<tr>
+<td>develop</td>
+<td>8</td>
+<td>6000</td>
+<td>2006-10-01</td>
+</tr>
+<tr>
+<td>develop</td>
+<td>11</td>
+<td>5200</td>
+<td>2007-08-15</td>
+</tr>
+</tbody>
+</table>
+
+<p>a. 统计各部门的总薪水，平均薪水和部门的详细情况</p>
+
+<pre><code>select sum(salary) OVER (PARTITION BY depname),avg(salary) OVER (PARTITION BY depname),* from empsalary;
+  sum  |          avg          |  depname  | empno | salary | enroll_date 
+-------+-----------------------+-----------+-------+--------+-------------
+ 25100 | 5020.0000000000000000 | develop   |    10 |   5200 | 2007-08-01
+ 25100 | 5020.0000000000000000 | develop   |     7 |   4200 | 2008-01-01
+ 25100 | 5020.0000000000000000 | develop   |     9 |   4500 | 2008-01-01
+ 25100 | 5020.0000000000000000 | develop   |     8 |   6000 | 2006-10-01
+ 25100 | 5020.0000000000000000 | develop   |    11 |   5200 | 2007-08-15
+  7400 | 3700.0000000000000000 | personnel |     2 |   3900 | 2006-12-23
+  7400 | 3700.0000000000000000 | personnel |     5 |   3500 | 2007-12-10
+ 20100 | 5025.0000000000000000 | sales     |     3 |   4800 | 2007-08-01
+ 20100 | 5025.0000000000000000 | sales     |     1 |   5000 | 2006-10-01
+ 20100 | 5025.0000000000000000 | sales     |     4 |   4800 | 2007-08-08
+ 20100 | 5025.0000000000000000 | sales     |     6 |   5500 | 2007-01-02
+(11 rows)
+</code></pre>
+
+<p>b.统计人员在所在部门的薪水排名情况</p>
+
+<pre><code>select rank() OVER (PARTITION BY depname ORDER BY salary),* from empsalary;
+ rank |  depname  | empno | salary | enroll_date 
+------+-----------+-------+--------+-------------
+    1 | develop   |     7 |   4200 | 2008-01-01
+    2 | develop   |     9 |   4500 | 2008-01-01
+    3 | develop   |    10 |   5200 | 2007-08-01
+    3 | develop   |    11 |   5200 | 2007-08-15
+    5 | develop   |     8 |   6000 | 2006-10-01
+    1 | personnel |     5 |   3500 | 2007-12-10
+    2 | personnel |     2 |   3900 | 2006-12-23
+    1 | sales     |     4 |   4800 | 2007-08-08
+    1 | sales     |     3 |   4800 | 2007-08-01
+    3 | sales     |     1 |   5000 | 2006-10-01
+    4 | sales     |     6 |   5500 | 2007-01-02
+(11 rows)
+</code></pre>
+
+<p>TODO</p>
+
+<hr/>
+
+<p>参考文档：<a href="https://my.oschina.net/Kenyon/blog/79543">https://my.oschina.net/Kenyon/blog/79543</a></p>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Docker快速翻越GFW札记]]></title>
+    <link href="1024coder.com/14766094528973.html"/>
+    <updated>2016-10-16T17:17:32+08:00</updated>
+    <id>1024coder.com/14766094528973.html</id>
+    <content type="html">
+<![CDATA[<p>记录了PPTP、L2TP、Shadowsocks、IKEv2借助docker的翻越方式。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_0">1.PPTP</h2>
+
+<pre><code>docker run -d --privileged --net=host \
+                -v {/path_to_file/chap-secrets}:/etc/ppp/chap-secrets \
+                sdrzlyz/pptp
+</code></pre>
+
+<p>PPTP 使用 /etc/ppp/chap-secrets 文件设置用户名和密码，所以你需要给docker容器提供这个文件，下面是这个文件的示例：</p>
+
+<pre><code># Secrets for authentication using PAP
+# client    server      secret           acceptable local IP addresses
+username   *           password    *
+</code></pre>
+
+<h2 id="toc_1">2.L2TP/IPSec</h2>
+
+<pre><code>docker run -d -p 500:500/udp -p 4500:4500/udp -p 1701:1701/tcp \
+               -e PSK={共享密码} -e USERNAME={用户名}-e PASSWORD={密码}\
+              siomiz/softethervpn
+</code></pre>
+
+<h2 id="toc_2">3.Shadowsocks</h2>
+
+<pre><code>docker run -d -p 465:465  -s 0.0.0.0 -p 465 \
+                -k {密码} -m aes-256-cfb \
+                oddrationale/docker-shadowsocks
+</code></pre>
+
+<h2 id="toc_3">4.IKEv2</h2>
+
+<pre><code>docker run -d --privileged \
+                --name ikev2-vpn-server \
+                --restart=always -p 500:500/udp -p 4500:4500/udp \
+                gaomd/ikev2-vpn-server:0.3.0
+</code></pre>
+
+<p>证书导出(host中可配置域名或者ip地址)：</p>
+
+<pre><code>docker run --privileged -i -t --rm --volumes-from ikev2-vpn-server -e &quot;HOST=vpn1.example.com&quot; gaomd/ikev2-vpn-server:0.3.0 generate-mobileconfig &gt; ikev2-vpn.mobileconfig
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[HBase golang初探]]></title>
+    <link href="1024coder.com/14766097423984.html"/>
+    <updated>2016-10-16T17:22:22+08:00</updated>
+    <id>1024coder.com/14766097423984.html</id>
+    <content type="html">
+<![CDATA[<p>最近要进行大数据相关的任务，牛刀小试，先将最基础的HBase搭建并实践起来。本文借用docker，快速搭建HBase基础环境，并使用go结合thrift调用相关API进行数据操作。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>0、方便起见，需要一个docker环境，安装配置略过不表。</p>
+
+<p>1、拉取image</p>
+
+<pre><code>docker pull harisekhon/hbase
+</code></pre>
+
+<p>2、修改entrypoint.sh，启用thrift2</p>
+
+<pre><code>/hbase/bin/hbase-daemon.sh start thrift2
+</code></pre>
+
+<p>3、挂载修改后的启动文件，启动hbase，并暴露thrift2端口</p>
+
+<pre><code>docker run -d -p 9090:9090 -v `pwd`/entrypoint.sh:/entrypoint.sh --name hbase harisekhon/hbase
+</code></pre>
+
+<p>4、运行hbase shell，建表</p>
+
+<pre><code>docker exec -it hbase bash
+
+hbase shell
+
+// 建表
+create &#39;elvizlai_test&#39;,{NAME =&gt; &#39;f1&#39;, VERSIONS =&gt; 2},{NAME =&gt; &#39;f2&#39;, VERSIONS =&gt; 2}
+
+// 删除表
+disable &#39;elvizlai_test&#39;
+drop &#39;elvizlai_test&#39;
+</code></pre>
+
+<p>4、thrift for mac安装，感谢homebrew</p>
+
+<pre><code>brew install thrift
+</code></pre>
+
+<p>5、下载hbase thrift2对应的hbase.thrift文件，生成go package</p>
+
+<pre><code>wget https://raw.githubusercontent.com/apache/hbase/master/hbase-thrift/src/main/resources/org/apache/hadoop/hbase/thrift2/hbase.thrift
+thrift -r -out . --gen go *.thrift
+</code></pre>
+
+<p>6、撰写main.go一探究竟吧</p>
+
+<pre><code class="language-go">package main
+
+import (
+    &quot;encoding/binary&quot;
+    &quot;fmt&quot;
+    &quot;hbase&quot;
+    &quot;reflect&quot;
+    &quot;strconv&quot;
+    &quot;time&quot;
+
+    &quot;git.apache.org/thrift.git/lib/go/thrift&quot;
+)
+
+const HOST = &quot;127.0.0.1&quot;
+const PORT = &quot;9090&quot;
+const TESTRECORD = 10
+
+func main() {
+    startTime := currentTimeMillis()
+    logformatstr_ := &quot;----%s\n&quot;
+    logformatstr := &quot;----%s 用时:%d-%d=%d毫秒\n\n&quot;
+    logformattitle := &quot;建立连接&quot;
+
+    table := &quot;elvizlai_test&quot;
+    rowkey := &quot;1&quot;
+    family := &quot;f1&quot;
+
+    protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
+
+    transport, err := thrift.NewTSocket(HOST + &quot;:&quot; + PORT)
+    if err != nil {
+        panic(err)
+    }
+
+    client := hbase.NewTHBaseServiceClientFactory(transport, protocolFactory)
+
+    if err := transport.Open(); err != nil {
+        panic(err)
+    }
+    tmpendTime := currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, startTime, (tmpendTime - startTime))
+    defer transport.Close()
+
+    //--------------Exists
+    logformattitle = &quot;调用Exists方法&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime := currentTimeMillis()
+    isexists, err := client.Exists([]byte(table), &amp;hbase.TGet{Row: []byte(rowkey)})
+    fmt.Printf(&quot;rowkey{%s} in table{%s} Exists:%t\n&quot;, rowkey, table, isexists)
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //--------------Put
+    logformattitle = &quot;调用Put方法写数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    cvarr := []*hbase.TColumnValue{
+        {
+            Family:    []byte(family),
+            Qualifier: []byte(&quot;idoall.org&quot;),
+            Value:     []byte(&quot;welcome idoall.org&quot;),
+        },
+    }
+    temptput := hbase.TPut{Row: []byte(rowkey), ColumnValues: cvarr}
+    err = client.Put([]byte(table), &amp;temptput)
+    if err != nil {
+        fmt.Printf(&quot;Put err:%s\n&quot;, err)
+    } else {
+        fmt.Println(&quot;Put done&quot;)
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //------------Get---------------
+    logformattitle = &quot;调用Get方法获取新增加的数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+
+    result, err := client.Get([]byte(table), &amp;hbase.TGet{Row: []byte(rowkey)})
+    if err != nil {
+        fmt.Printf(&quot;Get err:%s\n&quot;, err)
+    } else {
+        fmt.Println(&quot;Rowkey:&quot; + string(result.Row))
+        for _, cv := range result.ColumnValues {
+            printscruct(cv)
+        }
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //--------------put update
+    logformattitle = &quot;调用Put update方法&#39;修改&#39;数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    cvarr = []*hbase.TColumnValue{
+        {
+            Family:    []byte(family),
+            Qualifier: []byte(&quot;idoall.org&quot;),
+            Value:     []byte(&quot;welcome idoall.org---update&quot;),
+        },
+    }
+    temptput = hbase.TPut{Row: []byte(rowkey), ColumnValues: cvarr}
+    err = client.Put([]byte(table), &amp;temptput)
+    if err != nil {
+        fmt.Printf(&quot;Put update err:%s\n&quot;, err)
+    } else {
+        fmt.Println(&quot;Put update done&quot;)
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //------------Get  update---------------
+    logformattitle = &quot;调用Get方法获取&#39;修改&#39;后的数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    //
+    result, err = (client.Get([]byte(table), &amp;hbase.TGet{Row: []byte(rowkey)}))
+    if err != nil {
+        fmt.Printf(&quot;Get update err:%s\n&quot;, err)
+    } else {
+        fmt.Println(&quot;update Rowkey:&quot; + string(result.Row))
+        for _, cv := range result.ColumnValues {
+            printscruct(cv)
+        }
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //------------DeleteSingle------------
+    logformattitle = &quot;调用DeleteSingle方法删除一条数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    tdelete := hbase.TDelete{Row: []byte(rowkey)}
+    err = client.DeleteSingle([]byte(table), &amp;tdelete)
+    if err != nil {
+        fmt.Printf(&quot;DeleteSingle err:%s\n&quot;, err)
+    } else {
+        fmt.Print(&quot;DeleteSingel done\n&quot;)
+    }
+
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //-------------PutMultiple----------------
+    logformattitle = &quot;调用PutMultiple方法添加&quot; + strconv.Itoa(TESTRECORD) + &quot;条数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+
+    var tputArr []*hbase.TPut
+    for i := 0; i &lt; TESTRECORD; i++ {
+        putrowkey := strconv.Itoa(i)
+
+        tputArr = append(tputArr, &amp;hbase.TPut{
+            Row: []byte(putrowkey),
+            ColumnValues: []*hbase.TColumnValue{
+                {
+                    Family:    []byte(family),
+                    Qualifier: []byte(&quot;idoall.org&quot;),
+                    Value:     []byte(time.Now().String()),
+                },
+            }})
+    }
+
+    err = client.PutMultiple([]byte(table), tputArr)
+    if err != nil {
+        fmt.Printf(&quot;PutMultiple err:%s\n&quot;, err)
+    } else {
+        fmt.Print(&quot;PutMultiple done\n&quot;)
+    }
+
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //------------------GetMultiple-----------------------------
+    logformattitle = &quot;调用GetMultiple方法获取&quot; + strconv.Itoa(TESTRECORD) + &quot;数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    //
+    var tgets []*hbase.TGet
+    for i := 0; i &lt; TESTRECORD; i++ {
+        putrowkey := strconv.Itoa(i)
+        tgets = append(tgets, &amp;hbase.TGet{
+            Row: []byte(putrowkey)})
+    }
+    results, err := client.GetMultiple([]byte(table), tgets)
+    if err != nil {
+        fmt.Printf(&quot;GetMultiple err:%s&quot;, err)
+    } else {
+        fmt.Printf(&quot;GetMultiple Count:%d\n&quot;, len(results))
+        for _, k := range results {
+            fmt.Println(&quot;Rowkey:&quot; + string(k.Row))
+            for _, cv := range k.ColumnValues {
+                printscruct(cv)
+            }
+        }
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+    //-------------------TMutation
+    //TMutation包含一个TGet一个TPut，就不做测试了
+    //可以和MutateRow结合使用
+    //
+
+    //-------------------OpenScanner
+    logformattitle = &quot;调用OpenScanner方法&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    startrow := make([]byte, 4)
+    binary.LittleEndian.PutUint32(startrow, 1)
+    stoprow := make([]byte, 4)
+    binary.LittleEndian.PutUint32(stoprow, 10)
+
+    scanresultnum, err := client.OpenScanner([]byte(table), &amp;hbase.TScan{
+        StartRow: startrow,
+        StopRow:  stoprow,
+        //     FilterString: []byte(&quot;RowFilter(=, &#39;regexstring:00[1-3]00&#39;)&quot;),
+        //     FilterString: []byte(&quot;PrefixFilter(&#39;1407658495588-&#39;)&quot;),
+        Columns: []*hbase.TColumn{
+            {
+                Family:    []byte(family),
+                Qualifier: []byte(&quot;idoall.org&quot;),
+            },
+        },
+    })
+    if err != nil {
+        fmt.Printf(&quot;OpenScanner err:%s\n&quot;, err)
+    } else {
+        fmt.Printf(&quot;OpenScanner %d done\n&quot;, scanresultnum)
+        scanresult, err := client.GetScannerRows(scanresultnum, 100)
+        if err != nil {
+            fmt.Printf(&quot;GetScannerRows err:%s\n&quot;, err)
+        } else {
+            fmt.Printf(&quot;GetScannerRows %d done\n&quot;, len(scanresult))
+            for _, k := range scanresult {
+                fmt.Println(&quot;scan Rowkey:&quot; + string(k.Row))
+                for _, cv := range k.ColumnValues {
+                    printscruct(cv)
+                }
+            }
+        }
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //--closescanner
+    logformattitle = &quot;调用CloseScanner方法&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    err = client.CloseScanner(scanresultnum)
+    if err != nil {
+        fmt.Printf(&quot;CloseScanner err:%s\n&quot;, err)
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //-------------------GetScannerResults
+    logformattitle = &quot;调用GetScannerResults方法&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis() //
+    gsr, err := client.GetScannerResults([]byte(table), &amp;hbase.TScan{
+        StartRow: startrow,
+        StopRow:  stoprow,
+        //     FilterString: []byte(&quot;RowFilter(=, &#39;regexstring:00[1-3]00&#39;)&quot;),
+        //     FilterString: []byte(&quot;PrefixFilter(&#39;1407658495588-&#39;)&quot;),
+        Columns: []*hbase.TColumn{
+            {
+                Family:    []byte(family),
+                Qualifier: []byte(&quot;idoall.org&quot;),
+            },
+        }}, 100)
+    if err != nil {
+        fmt.Printf(&quot;GetScannerResults err:%s\n&quot;, err)
+    } else {
+        fmt.Printf(&quot;GetScannerResults %d done\n&quot;, len(gsr))
+        for _, k := range gsr {
+            fmt.Println(&quot;scan Rowkey:&quot; + string(k.Row))
+            for _, cv := range k.ColumnValues {
+                printscruct(cv)
+            }
+        }
+    }
+
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //---------------DeleteMultiple--------------
+    logformattitle = &quot;调用DeleteMultiple方法删除&quot; + strconv.Itoa(TESTRECORD) + &quot;数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    var tdelArr []*hbase.TDelete
+    for i := 0; i &lt; TESTRECORD; i++ {
+        putrowkey := strconv.Itoa(i)
+        tdelArr = append(tdelArr, &amp;hbase.TDelete{
+            Row: []byte(putrowkey)})
+    }
+    r, err := client.DeleteMultiple([]byte(table), tdelArr)
+    if err != nil {
+        fmt.Printf(&quot;DeleteMultiple err:%s\n&quot;, err)
+    } else {
+        fmt.Printf(&quot;DeleteMultiple %d done\n&quot;, TESTRECORD)
+        fmt.Println(r)
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    endTime := currentTimeMillis()
+    fmt.Printf(&quot;\nGolang调用总计用时:%d-%d=%d毫秒\n&quot;, endTime, startTime, (endTime - startTime))
+
+}
+
+func currentTimeMillis() int64 {
+    return time.Now().UnixNano() / 1000000
+}
+
+func printscruct(cv interface{}) {
+    switch reflect.ValueOf(cv).Interface().(type) {
+    case *hbase.TColumnValue:
+        s := reflect.ValueOf(cv).Elem()
+        typeOfT := s.Type()
+        //获取Thrift2中struct的field
+        for i := 0; i &lt; s.NumField(); i++ {
+            f := s.Field(i)
+            fileldformatstr := &quot;\t%d: %s(%s)= %v\n&quot;
+            switch f.Interface().(type) {
+            case []uint8:
+                fmt.Printf(fileldformatstr, i, typeOfT.Field(i).Name, f.Type(), string(f.Interface().([]uint8)))
+            case *int64:
+                var tempint64 int64
+                if f.Interface().(*int64) == nil {
+                    tempint64 = 0
+                } else {
+                    tempint64 = *f.Interface().(*int64)
+                }
+                fmt.Printf(fileldformatstr, i, typeOfT.Field(i).Name, f.Type(), tempint64)
+            default:
+                fmt.Print(&quot;I don&#39;t know&quot;)
+            }
+        }
+    default:
+        fmt.Print(&quot;I don&#39;t know&quot;)
+        fmt.Print(reflect.ValueOf(cv))
+    }
+
+}
+</code></pre>
+
+<hr/>
+
+<blockquote>
+<p>Step6中的代码摘自 <code>http://www.cnblogs.com/lion.net/p/3928453.html</code></p>
+</blockquote>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[基于grpc的微服务实践]]></title>
+    <link href="1024coder.com/14766109567964.html"/>
+    <updated>2016-10-16T17:42:36+08:00</updated>
+    <id>1024coder.com/14766109567964.html</id>
+    <content type="html">
+<![CDATA[<h2 id="toc_0">简介</h2>
+
+<p>近一两年来，微服务架构已经成为热门话题（<a href="http://microservices.io/index.html">microservices.io</a>)，与传统的一体化应用架构相比，微服务架构在开发、测试、部署方面都有众多吸引人之处，越来越多没有历史包袱的新项目都启用微服务架构的模式来开发。</p>
+
+<p>我们这个团队经过深入思考之后，决定在一起美这个APP的后端开发中，选择<a href="http://www.golang.org">go</a>作为开发语言，采用微服务模式来实现，经过近半年的实践，形成了一些心得，简单总结后分享出来，希望能够给大家一些帮助。</p>
+
+<span id="more"></span><!-- more -->
+
+<h2 id="toc_1">框架选择</h2>
+
+<p>不同的团队在选择基础框架（库）时考虑的要素不同，我们团队更喜欢小而美的框架，尽可能不要让框架侵入业务，易于升级、维护和替换，所以我们更愿意选择Library而不是Framework。</p>
+
+<p>在web方面，我们选择了<a href="https://github.com/urfave/negroni">negroni</a>作为middleware库，采用性能不错的<a href="https://github.com/julienschmidt/httprouter">httprouter</a>替换go标准库的mux，而没有用任何web相关的框架。</p>
+
+<p>在微服务之间的rpc调用方面，为了将来的扩展性、跨语言调用等因素，我们没有直接用go标准库的rpc模块，而是采纳了google最新推出的grpc。但grpc本身属于比较重型的rpc框架，对业务代码有一定的侵入性，我们做了一系列的库（包括<a href="https://gihthub.com/wothing/worpc">worpc</a>、<a href="https://github.com/wothing/worc">worc</a>、<a href="https://github.com/wothing/wonaming">wonaming</a>等）来屏蔽这些不必要的业务代码侵入，保持了业务代码本身的整洁。</p>
+
+<h2 id="toc_2">微服务划分</h2>
+
+<p>在微服务体系中，如何切分微服务也是一个重要的话题，在我们的实践中，我们遵循了如下一些原则：<br/>
+1. 逻辑独立、边界清晰的模块作为一个独立的微服务<br/>
+2. 每个table只由一个微服务操作（包括插入、读取、更改、删除等）<br/>
+3. table之间不引入外键约束，id字段全部采用uuid<br/>
+4. 将需要保持数据一致性的操作放在一个微服务中，避免跨服务带来的数据一致性难题<br/>
+5. 微服务之间的通信，尽可能采用消息队列实现松耦合，当需要同步调用时再借助于rpc<br/>
+6. 微服务独立部署，通过etcd实现服务的注册与发现</p>
+
+<h2 id="toc_3">总体架构</h2>
+
+<p><img src="http://blog-1024coder.qiniudn.com/%E6%9E%B6%E6%9E%84.png!DesktopWS" alt="架构"/></p>
+
+<h2 id="toc_4">Gateway</h2>
+
+<p>Gateway是微服务对外提供服务的一个屏障，它的核心点在于：<br/>
+1. 屏蔽微服务之间通过消息队列、rpc等通信方式，为Web页面和移动APP提供基于HTTP协议的RESTful API接口<br/>
+2. 对每一个http业务请求进行必要的鉴权和数据完整性、合法性检查，以减少微服务的负担，让微服务的代码更纯粹<br/>
+3. 微服务部署体系中，每个微服务可能会部署多个实例，Gateway还承担着在这些实例中进行负载均衡的功能<br/>
+4. 进行必要的日志输出、监控打点等功能，对每一个来自于APP和页面的http请求，生成一个唯一的trace id，并将trace id传导到每一个后续的微服务中，以便后续的查错和性能调优<br/>
+5. Gateway的每一个http请求都是无状态的，采用JWT（Json Web Token）机制实现一个客户端的请求状态信息的传递</p>
+
+<h2 id="toc_5">服务的注册与发现<a href="https://github.com/wothing/wonaming">wonaming</a></h2>
+
+<p>微服务体系中，服务的注册和发现对整体架构非常重要，尤其对于同步的rpc调用，每个服务有多少实例，每个实例的地址等，都需要有一个统一的管理。我们采用etcd保存服务信息，同时封装了wonaming作为微服务注册和发现的中间件，它的主要功能包括：<br/>
+1. 服务在启动时，调用wonaming向etcd注册包含TTL的服务“索引”、<br/>
+2. 注册后，服务与etcd保持定时心跳，当微服务主动退出或超时，服务解注册并“下线”<br/>
+3. 在Gateway中，通过resolver进行服务发现，配合grpc提供的balancer实现负载均衡，resolver启动后会对etcd中的 <code>/wonaming</code> 目录进行监控，当有服务注册或者解注册时，动态维护可用服务清单。</p>
+
+<pre><code class="language-go">r := wonaming.NewResolver(name)
+b := grpc.RoundRobin(r)
+conn, err := grpc.Dial(etcd, grpc.WithInsecure(), grpc.WithBalancer(b))
+</code></pre>
+
+<h2 id="toc_6">服务的rpc调用<a href="https://github.com/wothing/worc">worc</a></h2>
+
+<p>grpc是一个比较重的rpc框架，当客户端通过grpc调用服务端时，需要大量的重复性代码来建立连接、调用、处理错误返回等，影响业务代码的整洁性，并且对业务代码具有很强的侵入性，为了规避这个问题，我们封装了worc，以实现便捷的grpc调用：</p>
+
+<pre><code class="language-go">resp, err := worc.CallRPC(ctx, &quot;hello&quot;, &quot;Hello&quot;, req)
+</code></pre>
+
+<h2 id="toc_7">grpc的中间件链<a href="https://github.com/wothing/worpc">worpc</a></h2>
+
+<p>grpc提供了interceptor机制，但并没有提供chain来实现不同的中间件的顺序执行，为了将不同的中间件功能（如鉴权、日志、recover）封装在不同的函数里，worpc提供了组合gprc interceptor为一个chain的能力，可以根据自身业务的需要，撰写不同的grpc中间件进行组合，比如实现 grpc 的 recovery 与 log 中间件：</p>
+
+<pre><code class="language-go">func Recovery(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+    defer func() {
+        if r := recover(); r != nil {
+            // log stack
+            stack := make([]byte, MAXSTACKSIZE)
+            stack = stack[:runtime.Stack(stack, false)]
+            log.CtxErrorf(ctx, &quot;panic grpc invoke: %s, err=%v, stack:\n%s&quot;, info.FullMethod, r, string(stack))
+            // if panic, set custom error to &#39;err&#39;, in order that client and sense it.
+            err = grpc.Errorf(codes.Internal, &quot;panic error: %v&quot;, r)
+        }
+    }()
+    return handler(ctx, req)
+}
+
+func Logging(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (resp interface{}, err error) {
+    start := time.Now()
+
+    log.CtxInfof(ctx, &quot;calling %s, req=%s&quot;, info.FullMethod, marshal(req))
+    resp, err = handler(ctx, req)
+    log.CtxInfof(ctx, &quot;finished %s, took=%v, resp=%v, err=%v&quot;, info.FullMethod, time.Since(start), marshal(resp), err)
+
+    return resp, err
+}
+</code></pre>
+
+<pre><code class="language-go">s := grpc.NewServer(grpc.UnaryInterceptor(worpc.UnaryInterceptorChain(worpc.Recovery, worpc.Logging)))
+</code></pre>
+
+<p>通过以上组合，可为微服务提供panic恢复能力，保障服务稳定可用；同时还将上文中提到的注入context中的trace id取出，这样Gateway与微服务的日志通过就衔接了起来，方便查错、调优等。</p>
+
+<h2 id="toc_8">其它经验</h2>
+
+<ol>
+<li>使用<code>grpc.Errorf</code>封装业务中的逻辑错误，随grpc服务调用一起返回，将业务response与error 分离。</li>
+<li>数据可在Gateway中完成组装工作，但无需刻意避免微服务互调，理清依赖关系，尤其当protobuf升级时，根据具体业务来判断引用微服务是否需要同步重部署。</li>
+<li>微服务虽好，但一定程度上会加大实施难度，要根据业务体量合理入坑。</li>
+</ol>
+
+<h2 id="toc_9">总结</h2>
+
+<p>以上是微服务架构在我们团队的实践方案，麻雀虽小，五脏俱全。通过各中间件的灵活组合，保障业务有序与服务的高可用，还不抓紧实践起来？在后续的文章中，我们还会介绍目前微服务测试、运维及部署方案。</p>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[postgres主从配置]]></title>
+    <link href="1024coder.com/14766110748248.html"/>
+    <updated>2016-10-16T17:44:34+08:00</updated>
+    <id>1024coder.com/14766110748248.html</id>
+    <content type="html">
+<![CDATA[<h4 id="toc_0">好久没有写文章了，由于生产需要，将postgres的主从配置研习了一遍。为了方便起见，使用docker来简化操作。物理机上的操作类同。</h4>
+
+<span id="more"></span><!-- more -->
+
+<p>1、 创建两个postgres的container，一个做主，一个做从。</p>
+
+<pre><code>docker run -d -v /data1:/data -e PGDATA=/data -e POSTGRES_PASSWORD=PASSWORD1 --name db_master postgres postgres
+docker run -d -v /data2:/data -e PGDATA=/data -e POSTGRES_PASSWORD=PASSWORD2 --name db_slave postgres postgres
+</code></pre>
+
+<p>2、 在master节点创建repl用户</p>
+
+<pre><code>docker exec -it db_master psql -U postgres -c &quot;CREATE USER rep REPLICATION LOGIN CONNECTION LIMIT 1 ENCRYPTED PASSWORD &#39;PASSWORD_FOR_REP&#39;;&quot;
+</code></pre>
+
+<p>3、 修改master数据库的配置。<code>/data1/pg_hba.conf</code></p>
+
+<pre><code>host    replication     rep     IP_address_of_slave/32   md5
+</code></pre>
+
+<p>4、 修改master数据库的配置。<code>/data1/postgresql.conf</code></p>
+
+<pre><code>listen_addresses = &#39;*&#39;
+wal_level = &#39;hot_standby&#39;
+archive_mode = on
+archive_command = &#39;cd .&#39;
+max_wal_senders = 1
+hot_standby = on
+</code></pre>
+
+<p>5、 重启数据库备用</p>
+
+<pre><code>docker restart db_master
+</code></pre>
+
+<p>6、 先停掉从节点slave</p>
+
+<pre><code>docker stop db_slave
+</code></pre>
+
+<p>7、 修改slave配置。<code>/data2/pg_hba.conf</code></p>
+
+<pre><code>host    replication     rep     IP_address_of_master/32  md5
+</code></pre>
+
+<p>8、 修改slave配置。<code>/data2/postgresql.conf</code></p>
+
+<pre><code>listen_addresses = &#39;*&#39;
+wal_level = &#39;hot_standby&#39;
+archive_mode = on
+archive_command = &#39;cd .&#39;
+max_wal_senders = 1
+hot_standby = on
+</code></pre>
+
+<p>9、 主数据库初始化</p>
+
+<pre><code>    # 进入备份状态
+    docker exec -it db_master psql -U postgres -c &quot;select pg_start_backup(&#39;initial_backup&#39;);&quot;
+
+    rsync -cva --inplace /data1/ /data2/
+
+    # rsync -cva --inplace /data1/ slave_IP_address:/data2/
+
+    # 退出备份状态
+    docker exec -it db_master psql -U postgres -c &quot;select pg_stop_backup();&quot;
+</code></pre>
+
+<p>10、 从数据库slave恢复策略<code>/data2/recovery.conf</code></p>
+
+<pre><code>standby_mode = &#39;on&#39;
+primary_conninfo = &#39;host=master_IP_address port=5432 user=rep password=yourpassword&#39;
+trigger_file = &#39;/tmp/postgresql.trigger.5432&#39;
+</code></pre>
+
+<p>11、 从数据库启动</p>
+
+<pre><code>docker start db_slave
+</code></pre>
+
+<p>注意：第10步作用是当master挂掉后，可以让slave变身master，且变的可写。但第10步的风险是可能导致master同步失败，比较稳妥的做法是：</p>
+
+<pre><code>1.master 先进入备份状态
+2.rsync同步数据
+3.slave 启动
+4.master退出备份状态
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[nsq的docker之旅]]></title>
+    <link href="1024coder.com/14766119204994.html"/>
+    <updated>2016-10-16T17:58:40+08:00</updated>
+    <id>1024coder.com/14766119204994.html</id>
+    <content type="html">
+<![CDATA[<p>NSQ是用go语言开发的一款消息队列，本文记录了借助docker快速搭建开发过程。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>1.docker network创建</p>
+
+<p><code>docker network create nsq</code></p>
+
+<p>2.运行docker容器nsqlookupd</p>
+
+<p><code>docker run -d --net=nsq -p 4160:4160 -p 4161:4161 --name nsqlookupd nsqio/nsq /nsqlookupd</code></p>
+
+<p>3.运行docker容器nsqd</p>
+
+<p><code>docker run -d --net=nsq -p 4150:4150 -p 4151:4151 --name nsqd nsqio/nsq /nsqd --broadcast-address=192.168.99.111 --lookupd-tcp-address=nsqlookupd:4160</code></p>
+
+<p>其中 broadcast-address 是公网地址</p>
+
+<p>4.运行docker容器nsqadmin</p>
+
+<p><code>docker run -d --net=nsq --name nsqadmin -p 4171:4171 nsqio/nsq /nsqadmin  --lookupd-http-address=nsqlookupd:4161</code></p>
+
+<p>然后就可以通过:4171来访问nsqadmin啦</p>
+
+<p>赶紧发两条消息看看吧</p>
+
+<pre><code>    curl -d &#39;hello world 1&#39; &#39;http://192.168.99.111:4151/put?topic=test&#39;
+    curl -d &#39;hello world 2&#39; &#39;http://192.168.99.111:4151/put?topic=test&#39;
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Mac下为树莓派3安装Ubuntu Mate 16.04]]></title>
+    <link href="1024coder.com/14766120910281.html"/>
+    <updated>2016-10-16T18:01:31+08:00</updated>
+    <id>1024coder.com/14766120910281.html</id>
+    <content type="html">
+<![CDATA[<p>应用于树莓派3的Ubuntu Mate 16.04出来啦，赶紧把官方自带的raspbian换掉吧😊</p>
+
+<span id="more"></span><!-- more -->
+
+<p>1、首先去官网下载用于树莓派的unbuntu镜像。<a href="https://ubuntu-mate.org/raspberry-pi/">https://ubuntu-mate.org/raspberry-pi/</a></p>
+
+<p>2、使用Mac自带的解压缩工具解压后缀为xz的文件，得到img文件</p>
+
+<p>3、使用SDFromatter工具将SD卡格式化</p>
+
+<p>4、使用<code>df -h</code>命令查看挂载的u盘卷，本例为disk2s1</p>
+
+<p>5、卸载该卷：<code>sudo diskutil umount /dev/disk2s1</code></p>
+
+<p>6、使用<code>diskutil list</code>来确认设备</p>
+
+<p>7、使用dd命令将系统镜像写入：</p>
+
+<pre><code>sudo dd bs=4m if=ubuntu-mate-16.04-desktop-armhf-raspberry-pi.img of=/dev/rdisk2
+</code></pre>
+
+<p>注意，最后的是rdisk2，不是disk2，更不是disk2s1。<br/>
+（说明：/dev/disk2s1是分区，/dev/disk2是块设备，/dev/rdisk2是原始字符设备）</p>
+
+<p>8、经过漫长的等待，刷入完毕，<code>sudo diskutil unmountDisk /dev/disk2</code>卸载设备。将sd卡插入树莓派，进行常规安装。</p>
+
+<p>9、剩余部分就是启动后将sd卡充分利用了。</p>
+
+<pre><code>sudo fdisk /dev/mmcblk0
+按p回车，列出所有
+按d回车，选2--删除第二个分区
+按n回车，新建分区
+分区类型选p，然后选2，然后一路回车
+最后w保存
+
+sudo reboot重启设备
+
+重新登入设备后：sudo resize2fs /dev/mmcblk0p2
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[go sql 之 Query]]></title>
+    <link href="1024coder.com/14766121755274.html"/>
+    <updated>2016-10-16T18:02:55+08:00</updated>
+    <id>1024coder.com/14766121755274.html</id>
+    <content type="html">
+<![CDATA[<p>1、使用tx时，rows没有close是否会导致有未被释放的数据库连接？<br/>
+当最后执行tx.Commit()或tx.Rollback()时，相应的连接会被关闭。不会存在未被释放的情况。但仍然建议养成关闭的好习惯。</p>
+
+<p>2、rows.Err()的作用是什么？<br/>
+Err()的相关注释是这样写的：Err returns the error, if any, that was encountered during iteration.<br/>
+但请注意，这些错误，仅与迭代过程中rows错误相关，比如在下一个Next()时，数据库出问题了，或者tx已经结束，tx发生错误。<br/>
+与Scan()处产生的错误没有任何关联。<br/>
+所以，这两部分错误应该单独分别处理。</p>
+
+<p>3、rows.Next()中进行tx.Exec(update)操作？<br/>
+如果rows.Next()是由tx发起的，update语句中包含$1转译，则会报错。此时update相关，应该放到Next循环之外进行。<br/>
+如果进行无转移update，则允许该操作。<br/>
+如果rows.Next()是有DB发起的，则以上操作都是允许的。</p>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[[go基础总结]——bytes包]]></title>
+    <link href="1024coder.com/14766122451393.html"/>
+    <updated>2016-10-16T18:04:05+08:00</updated>
+    <id>1024coder.com/14766122451393.html</id>
+    <content type="html">
+<![CDATA[<p>总结下bytes包中的各操作。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>写</p>
+
+<pre><code class="language-go">func main() {
+    // 操作目标
+    data := make([]byte, 6)
+
+    buff := bytes.NewWriter(data)
+
+    //往目标中写入1,2,3,目标变为[1,2,3,0,0,0]
+    buff.Write([]byte{1, 2, 3})
+    fmt.Println(buff.Bytes())//输出buff中写入的内容,应该为[1,2,3]
+
+    //往目标中继续写入数据,变成[1,2,3,4,5,6]
+    buff.Write([]byte{4, 5, 6})
+
+    n, err := buff.Write([]byte{7})
+    fmt.Println(n, err)//由于目标已经满了,继续写就会造成io.EOF错误啦,n为0
+
+    //写游标重置
+    buff.Reset()
+
+    //又能愉快的往目标区写内容啦
+    buff.Write([]byte{7, 8, 9})
+    fmt.Println(buff.Bytes())//注意,重置的除了游标,buff内原来的内容也清空
+
+    fmt.Println(data)//但是操作区并不会应为Reset而清空,应该输出[7,8,9,4,5,6]
+}
+</code></pre>
+
+<p>读</p>
+
+<pre><code class="language-go">func main() {
+    // 操作目标,这个一般可能会超级大
+    data := []byte{1, 2, 3, 4, 5, 6, 7, 8}
+
+    buff := bytes.NewReader(data)
+
+    //这个一般是用来做复用的缓冲区,一般小于data的长度,为了试验效果,假设为4
+    x := [4]byte{}
+    for {
+        n, err := buff.Read(x[:])
+        if err != nil&amp;&amp;err == io.EOF {
+            break
+        }
+        fmt.Println(&quot;temp&quot;, x[:n])
+    }
+
+    fmt.Println(&quot;remian:&quot;, buff.Bytes())//都被读光了,现在应该是空的了
+
+    buff.SeekToBegin()//重新载入一下
+    fmt.Println(&quot;remian:&quot;, buff.Bytes())//可以看到又满了
+
+    fmt.Println(buff.Seek(3,1))
+    fmt.Println(&quot;remian:&quot;, buff.Bytes())//从当前位置,游标跳3,剩余[4,5,6,7,8]
+
+    fmt.Println(buff.Seek(2,0))
+    fmt.Println(&quot;remian:&quot;, buff.Bytes())//从起始位置,游标跳2个,剩余[3,4,5,6,7,8],可以看到,隐含一个重置过程
+
+    fmt.Println(buff.Seek(2,1))
+    fmt.Println(&quot;remian:&quot;, buff.Bytes())//从当前位置,游标跳2,剩余[5,6,7,8]
+
+
+    fmt.Println(buff.Seek(-3,2))
+    fmt.Println(&quot;remian:&quot;, buff.Bytes())//从末尾开始往前数,游标跳3,剩余[6,7,8]
+}
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[grpc over tls]]></title>
+    <link href="1024coder.com/14766124024042.html"/>
+    <updated>2016-10-16T18:06:42+08:00</updated>
+    <id>1024coder.com/14766124024042.html</id>
+    <content type="html">
+<![CDATA[<p>grpc本身可以工作于常规的tcp模式，但出于数据交换的保密性及安全角度考虑，在其上加一层tls也是极好的。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>Step1：<br/>
+    证书相关请翻阅以前的文章。使用：<br/>
+    — 生成 RSA 私钥（传统格式的）<br/>
+    — 自签名证书</p>
+
+<p>Step2：<br/>
+    建一个交换专用的package吧</p>
+
+<pre><code class="language-go">package key
+
+import (
+    &quot;crypto/tls&quot;
+    &quot;crypto/x509&quot;
+    &quot;log&quot;
+
+    &quot;google.golang.org/grpc/credentials&quot;
+)
+
+var certPEMBlock = []byte(`-----BEGIN CERTIFICATE-----
+MIIEMDCCAxigAwIBAgIJAO8uVrXywwnLMA0GCSqGSIb3DQEBBQUAMG0xCzAJBgNV
+内容隐藏😊
+aiJQH2u5zeca9eFkLZzcTUZmgvw=
+-----END CERTIFICATE-----
+`)
+
+var keyPEMBlock = []byte(`-----BEGIN RSA PRIVATE KEY-----
+MIIEogIBAAKCAQEArB4dHJpPxhoLAGMyp3sXgjIHIlUeZBQGM1xlpYq3wb0YtYZl
+内容隐藏😊
+zXPJfyC/bgm20s7B029Ojmwy3ReoTY2oL2hCeRRiUXp82Az+wCQ=
+-----END RSA PRIVATE KEY-----
+`)
+
+func ServerTLS() credentials.TransportAuthenticator {
+    cert, err := tls.X509KeyPair(certPEMBlock, keyPEMBlock)
+    if err != nil {
+        log.Fatal(err)
+    }
+
+    return credentials.NewTLS(&amp;tls.Config{Certificates: []tls.Certificate{cert}})
+}
+
+func ClientTLS() credentials.TransportAuthenticator {
+    cp := x509.NewCertPool()
+    if !cp.AppendCertsFromPEM(certPEMBlock) {
+        log.Fatal(&quot;Credentials: Failed to append certificates&quot;)
+    }
+
+    return credentials.NewTLS(&amp;tls.Config{ServerName: &quot;证书签名相关&quot;, RootCAs: cp})
+}
+</code></pre>
+
+<p>Step3：<br/>
+    Server服务端：</p>
+
+<pre><code class="language-go">s := grpc.NewServer(grpc.Creds(key.ServerTLS()))
+pb.RegisterXXXServiceServer(s, &amp;service.XXXServer{})
+s.Serve(lis)
+</code></pre>
+
+<p>Step4：<br/>
+    Client客户端：</p>
+
+<pre><code class="language-go">conn, err := grpc.Dial(address, grpc.WithPerRPCCredentials(key.ClientTLS()))
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[go 编译时注入]]></title>
+    <link href="1024coder.com/14766125154205.html"/>
+    <updated>2016-10-16T18:08:35+08:00</updated>
+    <id>1024coder.com/14766125154205.html</id>
+    <content type="html">
+<![CDATA[<pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+)
+
+var DEBUG = &quot;NO&quot;
+
+func main() {
+    fmt.Printf(&quot;DEBUG is %q\n&quot;, DEBUG)
+}
+</code></pre>
+
+<p>使用ldflags动态注入：</p>
+
+<pre><code>go build -ldflags &#39;-X main.DEBUG=YES&#39; test.go
+</code></pre>
+
+<span id="more"></span><!-- more -->
+
+<p>-X仅支持string类型</p>
+
+<p>更复杂一点的，还有使用tags来指定编译：<br/>
+main.go</p>
+
+<pre><code class="language-go">package main
+
+func main() {
+    Debug()
+}
+</code></pre>
+
+<p>log_prod.go</p>
+
+<pre><code class="language-go">// +build !debug
+
+package main
+
+func Debug() {
+}
+
+</code></pre>
+
+<p>log_debug.go</p>
+
+<pre><code class="language-go">// +build debug
+
+package main
+
+import (
+    &quot;fmt&quot;
+)
+
+func Debug() {
+    fmt.Println(&quot;This is Debug info&quot;)
+}
+</code></pre>
+
+<p>go build -tags debug<br/>
+则会输出调试信息</p>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[公钥 密钥 证书整理]]></title>
+    <link href="1024coder.com/14766126348503.html"/>
+    <updated>2016-10-16T18:10:34+08:00</updated>
+    <id>1024coder.com/14766126348503.html</id>
+    <content type="html">
+<![CDATA[<p>-- 生成 RSA 私钥（带密码的）<br/>
+openssl genrsa -des3 -out rsa_private_key.pem 2048</p>
+
+<p>-- 生成 RSA 私钥（传统格式的）</p>
+
+<p>openssl genrsa -out rsa_private_key.pem 2048</p>
+
+<p>-- 将传统格式的私钥转换成 PKCS#8 格式的</p>
+
+<p>openssl pkcs8 -topk8 -inform PEM -in rsa_private_key.pem -outform PEM -nocrypt</p>
+
+<p>-- 生成 RSA 公钥</p>
+
+<p>openssl rsa -in rsa_private_key.pem -pubout -out rsa_public_key.pem</p>
+
+<p>-- 证书请求（可拿到第三方进行签名）<br/>
+openssl req –new -x509 -key rsa_private_key.pem -out server.pem</p>
+
+<p>-- 自签名证书<br/>
+openssl req -new -x509 -key rsa_private_key.pem -out ca.pem -days 1095</p>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[数据字典导出备忘]]></title>
+    <link href="1024coder.com/14845521346247.html"/>
+    <updated>2017-01-16T15:35:34+08:00</updated>
+    <id>1024coder.com/14845521346247.html</id>
+    <content type="html">
+<![CDATA[<p>遇到需要导出数据字典的情况，PowerDesign的导出方式不再细表。其实在有备注的情况下，可以直接从数据库中导出相应的字典。</p>
+
+<pre><code class="language-sql">SELECT  A.TABLE_NAME AS &quot;表名&quot;, A.COLUMN_NAME AS &quot;字段名&quot;, 
+DECODE(A.CHAR_LENGTH, 0, DECODE(A.DATA_SCALE, NULL, A.DATA_TYPE, A.DATA_TYPE||&#39;(&#39;||A.DATA_PRECISION||&#39;,&#39;||A.DATA_SCALE||&#39;)&#39;),
+A.DATA_TYPE||&#39;(&#39;||A.CHAR_LENGTH||&#39;)&#39;) as &quot;字段类型&quot;,A.DATA_DEFAULT AS &quot;默认值&quot;,
+A.NULLABLE AS &quot;能否为空&quot;, B.comments AS &quot;备注&quot;
+FROM sys.user_tab_columns A, sys.user_col_comments B
+WHERE A.table_name=B.table_name AND A.COLUMN_NAME=B.COLUMN_NAME AND A.TABLE_NAME IN (select table_name from user_tables)
+ORDER BY A.TABLE_NAME
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[gRPC实战]]></title>
+    <link href="1024coder.com/14845522344116.html"/>
+    <updated>2017-01-16T15:37:14+08:00</updated>
+    <id>1024coder.com/14845522344116.html</id>
+    <content type="html">
+<![CDATA[<h4 id="toc_0"><a href="http://www.grpc.io" title="gRPC">gRPC</a>是Google出品的一款基于<a href="https://developers.google.com/protocol-buffers/" title="Protobuf">Protobuf</a>与HTTP/2的高性能开源RPC通信框架。</h4>
+
+<span id="more"></span><!-- more -->
+
+<h3 id="toc_1">1、基础配置</h3>
+
+<p>下载protobuf IDL解析所需的 protoc 与 protoc-gen-go 二进制可执行文件配置</p>
+
+<p>偷懒，直接下载对应平台下的protoc：<a href="https://github.com/google/protobuf/releases">https://github.com/google/protobuf/releases</a><br/>
+protoc-gen-go:<code>go get -u github.com/golang/protobuf/protoc-gen-go</code><br/>
+然后就可通过protoc指令愉快的生成对应的文件了.</p>
+
+<h3 id="toc_2">2、撰写IDL</h3>
+
+<p>新建文件<code>hello.proto</code>内容如下：</p>
+
+<pre><code>syntax = &quot;proto3&quot;;//使用的protobuf版本，默认为2，但是我们要用最新的3，所以要在首行非注释部分声明
+package hello;//对应生成go文件的包名
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+}
+
+// The request message containing the user&#39;s name.
+message HelloRequest {
+  string name = 1;
+  int64 age = 2;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+  int64 age = 2;
+}
+</code></pre>
+
+<p>然后执行</p>
+
+<pre><code>protoc ./*.proto --go_out=plugins=grpc:.
+</code></pre>
+
+<p>来生成*.pb.go文件供服务端与客户端调用。（PS：要cd到文件所在目录）</p>
+
+<h3 id="toc_3">3、服务端</h3>
+
+<pre><code class="language-go">// server is used to implement hello.GreeterServer.
+type server struct{}
+
+// SayHello implements hello.GreeterServer
+func (s *server) SayHello(ctx context.Context, in *hello.HelloRequest) (*hello.HelloReply, error) {
+    fmt.Println(&quot;request comming...&quot;)
+    return &amp;hello.HelloReply{Message: &quot;Hello &quot; + in.Name, Age:28}, nil
+}
+
+func main() {
+    lis, err := net.Listen(&quot;tcp&quot;, &quot;:50051&quot;)
+    if err != nil {
+        log.Fatalf(&quot;failed to listen: %v&quot;, err)
+    }
+
+    s := grpc.NewServer()
+    hello.RegisterGreeterServer(s, &amp;server{})
+    s.Serve(lis)
+}
+</code></pre>
+
+<h3 id="toc_4">4、客户端</h3>
+
+<pre><code class="language-go">const (
+    address = &quot;localhost:50051&quot;
+    defaultName = &quot;world&quot;
+)
+
+func main() {
+    conn, err := grpc.Dial(address, grpc.WithInsecure())
+    if err != nil {
+        log.Fatalf(&quot;did not connect: %v&quot;, err)
+    }
+    defer conn.Close()
+
+    c := hello.NewGreeterClient(conn)
+
+    r, err := c.SayHello(context.Background(), &amp;hello.HelloRequest{Name: defaultName, Age:32})
+
+    if err != nil {
+        log.Fatalf(&quot;could not greet: %v&quot;, err)
+    }
+    
+    fmt.Printf(&quot;Greeting: %s&quot;, r.String())
+}
+
+</code></pre>
+
+<h3 id="toc_5">5、Context传值</h3>
+
+<p>可以使用metadata在context中在服务端与客户端之间进行上下文交互。</p>
+
+<p>对于客户端发送值：</p>
+
+<pre><code>ctx := metadata.NewContext(
+            context.Background(),
+            metadata.Pairs(&quot;key1&quot;, &quot;val1&quot;, &quot;key2&quot;, &quot;val2&quot;),
+        )
+</code></pre>
+
+<p>对于服务端取值：</p>
+
+<pre><code>md, _ := metadata.FromContext(ctx)
+fmt.Println(md[&quot;key1&quot;])
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[go reflect 反射探究]]></title>
+    <link href="1024coder.com/14845521808276.html"/>
+    <updated>2017-01-16T15:36:20+08:00</updated>
+    <id>1024coder.com/14845521808276.html</id>
+    <content type="html">
+<![CDATA[<blockquote>
+<p>反射在计算机的概念里是指一段程序审查自身结构的能力，主要通过类型进行审查。它是元编程的一种形式，同样也是引起混乱的重大来源。</p>
+</blockquote>
+
+<p>但同时，合理利用反射也为我们编程提供了非常灵活的操作方式及trick，让程序更好的运行。</p>
+
+<span id="more"></span><!-- more -->
+
+<h3 id="toc_0">go reflect 使用注意事项：</h3>
+
+<h3 id="toc_1">go reflect 主要应用场景：</h3>
+
+<pre><code>遍历结构体字段名
+修改结构体中字段数值
+调用结构体方法
+获取结构体的tag标记
+</code></pre>
+
+<p>待编辑。。。</p>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[MySQL主从配置]]></title>
+    <link href="1024coder.com/14845523386570.html"/>
+    <updated>2017-01-16T15:38:58+08:00</updated>
+    <id>1024coder.com/14845523386570.html</id>
+    <content type="html">
+<![CDATA[<p>记录下mysql的主从配置方案。</p>
+
+<span id="more"></span><!-- more -->
+
+<h4 id="toc_0">主库my.ini配置</h4>
+
+<pre><code>server-id=1 #给数据库服务的唯一标识，一般设置为服务器ip的末尾号
+log_bin = /var/log/mysql/mariadb-bin
+log_bin_index = /var/log/mysql/mariadb-bin.index
+binlog-do-db = cl #同步cl库 其他库都不同步
+#binlog-ignore-db = mysql,information_schema //不同步
+</code></pre>
+
+<h4 id="toc_1">从库my.ini配置</h4>
+
+<pre><code>server-id = 2 #多个从服务器id不能重复
+log-bin = /var/log/mysql/mariadb-bin #视需求可选择关闭该binlog
+relay-log = /var/log/mysql/relay-log
+relay-log-index = /var/log/mysql/relay-log-index
+replicate-do-db = cl #同步cl库 其他库都不同步
+</code></pre>
+
+<h4 id="toc_2">给主库配置用于同步的授权账号</h4>
+
+<pre><code>master:mysql&gt;grant replication slave on *.* to &#39;username&#39;@&#39;%&#39; identified by &#39;password&#39;;
+master:mysql&gt;flush privileges;
+</code></pre>
+
+<h4 id="toc_3">如果服务器已经运行了大量时间且日志自动清除过，要先将过往数据导出并对从库做数据恢复。</h4>
+
+<pre><code>master:mysql&gt;flush tables with read lock; #锁掉master服务器的所有表，禁止写入。
+master:mysql&gt;show master status; #查看并记录下 File mariadb-bin.000019, Position 84567
+mysqldump -u root -p dbName &gt; db.sql
+master:mysql&gt; unlock tables; #导出完成之后，解锁。 master可以继续跑起来了。
+</code></pre>
+
+<p>将产生的db.sql拷贝至从服务器，做恢复。</p>
+
+<p><code>mysql -u root -p dbName &lt; db.sql</code> 或 <code>slave:mysql&gt;source db.sql</code></p>
+
+<h4 id="toc_4">配置从服务器</h4>
+
+<pre><code>slave:mysql&gt;change master to master_host=&#39;104.236.166.xxx&#39;,master_user=&#39;username&#39;,master_password=&#39;password&#39;,master_port=3306,master_log_file=&#39;mariadb-bin.000019&#39;,master_log_pos=84567;
+</code></pre>
+
+<h4 id="toc_5">配置检查</h4>
+
+<pre><code>slave:mysql&gt;show slave status\G
+如果以下都为Yes的话，说明配置成功且运行正常
+Slave_IO_Running: Yes
+Slave_SQL_Running: Yes
+
+slave:mysql&gt;show processlist; #显示从服务器上的进程
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[Linux中常用操作命令]]></title>
+    <link href="1024coder.com/14845548132443.html"/>
+    <updated>2017-01-16T16:20:13+08:00</updated>
+    <id>1024coder.com/14845548132443.html</id>
+    <content type="html">
+<![CDATA[<p>记录下Linux的常用命令，以备不时之需。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>常见指令:</p>
+
+<pre><code class="language-bash">ls　　        显示文件或目录
+     -l          列出文件详细信息l(list)
+     -a          列出当前目录下所有文件及目录，包括隐藏的a(all)
+mkdir        创建目录
+     -p          创建目录，若无父目录，则创建p(parent)
+cd           切换目录
+touch        创建空文件
+echo         创建带有内容的文件。
+cat          查看文件内容
+cp           拷贝
+mv           移动或重命名
+rm           删除文件
+     -r          递归删除，可删除子目录及文件
+     -f          强制删除
+find         在文件系统中搜索某文件
+wc           统计文本中行数、字数、字符数
+grep         在文本文件中查找某个字符串
+rmdir        删除空目录
+tree         树形结构显示目录，需要安装tree包
+pwd          显示当前目录
+ln           创建链接文件
+more、less   分页显示文本文件内容
+head、tail   显示文件头、尾内容
+ctrl+alt+F1  命令行全屏模式
+</code></pre>
+
+<p>系统管理命令:</p>
+
+<pre><code class="language-bash">stat         显示指定文件的详细信息，比ls更详细
+who          显示在线登陆用户
+whoami       显示当前操作用户
+hostname     显示主机名
+uname        显示系统简要信息
+     -a          显示系统完整信息
+top          动态显示当前耗费资源最多进程信息
+ps           显示瞬间进程状态 ps aux
+     -ef         显示系统常驻进程
+du           查看目录大小 du -h /home带有单位显示目录信息
+df           查看磁盘大小 df -h 带有单位显示磁盘信息
+ifconfig     查看网络情况
+ping         测试网络连通
+netstat      显示网络状态信息
+man          显示命令手册
+clear        清屏
+alias        对命令重命名 如：alias showmeit=”ps aux” ，另外解除使用unaliax showmeit
+kill         杀死进程，可以先用 ps 或 top 命令查看进程的id，然后再用kill命令杀死进程。
+</code></pre>
+
+<p>打包压缩相关命令:</p>
+
+<pre><code class="language-bash">gzip：
+bzip2：
+tar:            打包压缩
+     -c             归档文件
+     -x             解压缩文件
+     -z             gzip压缩文件
+     -j             bzip2压缩文件
+     -v             显示压缩或解压缩过程 v(view)
+     -f             使用档名
+例：
+tar -cvf /home/abc.tar /home/abc            只打包，不压缩
+tar -zcvf /home/abc.tar.gz /home/abc        打包，并用gzip压缩
+tar -jcvf /home/abc.tar.bz2 /home/abc       打包，并用bzip2压缩
+
+如果想解压缩，就直接替换上面的命令  tar -cvf  / tar -zcvf  / tar -jcvf 中的“c” 换成“x” 就可以了。
+</code></pre>
+
+<p>关机/重启机器:</p>
+
+<pre><code class="language-bash">shutdown
+     -r           关机重启
+     -h           关机不重启
+     now          立刻关机
+halt             关机
+reboot           重启
+</code></pre>
+
+<p>Linux管道:</p>
+
+<p>将一个命令的标准输出作为另一个命令的标准输入。也就是把几个命令组合起来使用，后一个命令处理前一个命令的输出结果。</p>
+
+<p>例：<code>grep -r “close” /home/* | more</code></p>
+
+<p>在home目录下所有文件中查找，包括close的文件，并分页输出。</p>
+
+<p>Linux软件包管理(centos:yum;ubuntu:apt-get):</p>
+
+<p>以ubnuntu下安装tree为例:</p>
+
+<pre><code class="language-bash">sudo apt-get install tree  安装tree
+sudo apt-get remove tree  卸载tree
+sudo apt-get update  更新软件
+sudo apt-get upgrade
+</code></pre>
+
+<p>vim使用:<br/>
+vim三种模式：命令模式、插入模式、编辑模式。使用ESC或i或：来切换模式。<br/>
+命令模式下：</p>
+
+<pre><code class="language-bash">:q                      退出
+:q!                     强制退出
+:wq                   保存并退出
+:set number      显示行号
+:set nonumber  隐藏行号
+/apache            在文档中查找字符apache，按n跳到下一个，shift+n上一个
+yyp                  复制光标所在行，并粘贴
+h(左移一个字符←)、j(下一行↓)、k(上一行↑)、l(右移一个字符→)
+</code></pre>
+
+<p>用户及用户组管理</p>
+
+<pre><code class="language-bash">/etc/passwd      存储用户账号
+/etc/group       存储组账号
+/etc/shadow      存储用户账号的密码
+/etc/gshadow     存储用户组账号的密码
+useradd user     添加用户
+userdel user     删除用户
+groupadd user    添加组用户
+groupdel user    删除组用户
+passwd root      给用户root设置密码
+su root          临时提权到root用户
+su – root        切换到root用户
+/etc/profile     系统环境变量
+bash_profile     用户环境变量
+.bashrc          用户环境变量
+su user          切换用户，加载配置文件.bashrc
+su – user        切换用户，加载配置文件/etc/profile ，加载bash_profile
+</code></pre>
+
+<p>更改文件的用户及用户组</p>
+
+<pre><code class="language-bash">sudo chown [-R递归] owner[:group] {File|Directory}
+要想切换文件所属的用户及组。可以使用命令。
+sudo chown root:root rarlinux-x64-5.1.b3.tar.gz
+</code></pre>
+
+<p>文件权限管理</p>
+
+<p>三种基本权限</p>
+
+<pre><code class="language-bash">R    读        数值表示为4
+W    写        数值表示为2
+X    可执行     数值表示为1
+</code></pre>
+
+<p>更改权限<br/>
+sudo chmod [u所属用户  g所属组  o其他用户  a所有用户]  [+增加权限  -减少权限]  [r  w  x]   目录名 <br/>
+例如：有一个文件filename，权限为“-rw-r—-x” ,将权限值改为”-rwxrw-r-x”，用数值表示为765<br/>
+<code>sudo chmod u+x g+w o+r  filename</code></p>
+
+<p>上面的例子可以用数值表示<code>sudo chmod 765 filename</code></p>
+
+<p>网络相关</p>
+
+<pre><code>netstat -tunlp 显示所有端口及对应的应用程序
+netstat -anp 显示系统端口使用情况
+lsof -i:端口号 查看某一端口的占用情况
+</code></pre>
+]]>
+    </content>
+  </entry>
+  
+  <entry>
+    <title type="html"><![CDATA[JSONP札记]]></title>
+    <link href="1024coder.com/14845524801245.html"/>
+    <updated>2017-01-16T15:41:20+08:00</updated>
+    <id>1024coder.com/14845524801245.html</id>
+    <content type="html">
+<![CDATA[<p>web开发中数据的跨域传送一直让人苦恼，JSONP的出现，为web跨域传输提供了一把利器!</p>
+
+<span id="more"></span><!-- more -->
+
+<p>这是啥？有啥用？</p>
+
+<blockquote>
+<p>JSONP(JSON with Padding)是JSON的一种“使用模式”，可用于解决主流浏览器的跨域数据访问的问题。</p>
+</blockquote>
+
+<p>怎么用？</p>
+
+<pre><code class="language-html">&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+    &lt;title&gt;Top Customers with Callback&lt;/title&gt;
+    &lt;script type=&quot;text/javascript&quot; src=&quot;http://cdn.bootcss.com/jquery/2.1.4/jquery.min.js&quot;&gt;&lt;/script&gt;
+&lt;/head&gt;
+&lt;body&gt;
+&lt;div id=&quot;customerList&quot;&gt;
+&lt;/div&gt;
+&lt;script type=&quot;text/javascript&quot;&gt;
+    function onCustomerLoaded(result) {
+        var html = &#39;&lt;ul&gt;&#39;;
+        for (var i = 0; i &lt; result.length; i++) {
+            html += &#39;&lt;li&gt;&#39; + result[i] + &#39;&lt;/li&gt;&#39;;
+        }
+        html += &#39;&lt;/ul&gt;&#39;;
+        document.getElementById(&#39;customerList&#39;).innerHTML = html;
+    }
+&lt;/script&gt;
+&lt;script type=&quot;text/javascript&quot; src=&quot;http://127.0.0.1:8081/jsonp&quot;&gt;&lt;/script&gt;
+
+&lt;script type=&quot;text/javascript&quot; src=&quot;http://127.0.0.1:8081/jsonp?callback=onCustomerLoaded&quot;&gt;&lt;/script&gt;
+
+&lt;script type=&quot;text/javascript&quot;&gt;
+    $.ajax({
+        &#39;url&#39;: &#39;http://127.0.0.1:8081/jsonp&#39;,
+        &#39;type&#39;: &#39;POST&#39;,
+        &#39;dataType&#39;: &#39;JSONP&#39;,
+        &#39;jsonp&#39;: &#39;callback&#39;,
+        &#39;error&#39;: function (e) {
+            alert(e.repsonseText);
+        },
+        &#39;success&#39;: function (data) {
+            alert(data);
+        }
+    });
+&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+
+<p>服务端只需要返回callback对应func名称的字符串及数据拼接即可。用熟悉的go语言结合beego来实现这部分：</p>
+
+<pre><code class="language-go">func (this *JSONP) Get() {
+    this.TplNames = &quot;jsonp.html&quot;
+    this.Data[&quot;jsonp&quot;] = []int{1,2,3}
+    this.ServeJsonp()
+}
+</code></pre>
+
+<p><code>jsonp.html</code>代码中内容如下：</p>
+
+<pre><code class="language-javascript">alert(&quot;query中没有callback!&quot;)
+</code></pre>
+
+<p>到底可不可以POST：可以看到上面的代码中，jquery ajax的部分使用了POST方法，那是不是说可以将数据放到requset的body中发送至服务器？<br/>
+答案：如果被请求的url与页面同源，则用POST方法（同源本来就可以POST方法调用，干嘛费这个劲搞这个）。。。<br/>
+非同源的时候，这部分会转换为GET方法执行。</p>
+
+<p>JSONP的局限性：数据要放到url中来传输，相比于传统的POST少了些许灵活性。</p>
+
+<p>JSONP的好处：方便调用。</p>
+]]>
+    </content>
+  </entry>
+  
+</feed>

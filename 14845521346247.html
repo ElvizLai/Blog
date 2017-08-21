@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         数据字典导出备忘 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">数据字典导出备忘</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2016-03-01T15:35:34+08:00" itemprop="datePublished">2016/3/1</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>遇到需要导出数据字典的情况，PowerDesign的导出方式不再细表。其实在有备注的情况下，可以直接从数据库中导出相应的字典。</p>
+
+<pre><code class="language-sql">SELECT  A.TABLE_NAME AS &quot;表名&quot;, A.COLUMN_NAME AS &quot;字段名&quot;, 
+DECODE(A.CHAR_LENGTH, 0, DECODE(A.DATA_SCALE, NULL, A.DATA_TYPE, A.DATA_TYPE||&#39;(&#39;||A.DATA_PRECISION||&#39;,&#39;||A.DATA_SCALE||&#39;)&#39;),
+A.DATA_TYPE||&#39;(&#39;||A.CHAR_LENGTH||&#39;)&#39;) as &quot;字段类型&quot;,A.DATA_DEFAULT AS &quot;默认值&quot;,
+A.NULLABLE AS &quot;能否为空&quot;, B.comments AS &quot;备注&quot;
+FROM sys.user_tab_columns A, sys.user_col_comments B
+WHERE A.table_name=B.table_name AND A.COLUMN_NAME=B.COLUMN_NAME AND A.TABLE_NAME IN (select table_name from user_tables)
+ORDER BY A.TABLE_NAME
+</code></pre>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

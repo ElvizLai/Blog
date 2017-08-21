@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         go语言模拟multipart/form-data提交数据 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">go语言模拟multipart/form-data提交数据</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2015-09-23T16:20:54+08:00" itemprop="datePublished">2015/9/23</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>在项目中遇到了以下需求：golang的webserver要将页面中用户提交的文件等信息做中转，提交到云存储服务器中。</p>
+
+<p>1、折中方案：先将用户提交的文件等信息存储到服务器本地，再使用beego中httplib.PostFile将本地的文件上传到服务器。</p>
+
+<p>2、最终方案：服务端拼装form数据，做数据中转，模拟提交。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>方案1、先看折中方案的实施：<br/>
+part1:文件存储到服务器【略】</p>
+
+<p>part2:文件中转</p>
+
+<pre><code class="language-golang">req:=httplib.POST(&quot;url&quot;)
+req.Header(&quot;myheader&quot;,&quot;header&quot;)
+req.Param(&quot;username&quot;,&quot;elvizlai&quot;)//附加参数传递
+req.PostFile(&quot;file&quot;,&quot;temp/fileinlocal.png&quot;)//第一个参数为云存储接收的文件名，第二个参数为本地文件
+fmt.Println(req.String())//简单粗暴的看一下结果
+</code></pre>
+
+<p>part3:本地文件删除【略】</p>
+
+<p>方案2、直接将reqest中读取到的multipart.File中转</p>
+
+<pre><code class="language-golang">func uploadFile(username string, file multipart.File) (*simplejson.Json, error) {
+    body := &amp;bytes.Buffer{}
+    writer := multipart.NewWriter(body)
+    part, err := writer.CreateFormFile(&quot;file&quot;, &quot;tx.png&quot;)
+
+    if err != nil {
+        errLog(err)
+        return nil, err
+    }
+
+    _, err = io.Copy(part, file)
+    _ = writer.WriteField(&quot;username&quot;, username)
+
+    err = writer.Close()
+    if err != nil {
+        errLog(err)
+        return nil, err
+    }
+
+    request, err := http.NewRequest(&quot;POST&quot;, &quot;url&quot;, body)
+    request.Header.Set(&quot;Content-Type&quot;, writer.FormDataContentType())
+    request.Header.Set(&quot;myheader&quot;, &quot;header&quot;)
+
+    if err != nil {
+        errLog(err)
+        return nil, err
+    }
+
+    client := &amp;http.Client{}
+    resp, err := client.Do(request)
+
+    if err != nil {
+        errLog(err)
+        return nil, err
+    } else {
+        body := &amp;bytes.Buffer{}
+        _, err := body.ReadFrom(resp.Body)
+        if err != nil {
+            errLog(err)
+            return nil, err
+        }
+        resp.Body.Close()
+        json, err := simplejson.NewFromReader(body)
+        debug(json.MustMap())
+
+        return json, err
+    }
+}
+</code></pre>
+
+<p>后记：<br/>
+    同时记录以下中转过程中的文件验证：</p>
+
+<pre><code class="language-golang">func (this *Account) Upload() {
+
+    file, header, _ := this.Ctx.Request.FormFile(&quot;file&quot;)
+
+    type Size interface {
+        Size() int64
+    }
+
+    //获取文件大小
+    size := file.(Size).Size()
+    fmt.Println(&quot;文件大小&quot;, size)
+
+    //获取文件类型
+    fmt.Println(&quot;文件类型&quot;, header.Header.Get(&quot;Content-Type&quot;))
+
+    //获取文件名
+    fmt.Println(&quot;文件名&quot;, header.Filename)
+    //TODO 文件大小，类型判别
+
+    result, _ := uploadFile(&quot;elvizlai&quot;, file)
+
+    this.Data[&quot;json&quot;]=result
+    this.ServeJson()
+}
+</code></pre>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         【转】搭建IPSec/IKEv2服务器 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">【转】搭建IPSec/IKEv2服务器</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2015-10-29T16:05:17+08:00" itemprop="datePublished">2015/10/29</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>备份下搭建IPSec/IKEv2的过程，以备不时之需。。。</p>
+
+<span id="more"></span><!-- more -->
+
+<blockquote>
+<p>本文引自：<a href="http://quericy.me/blog/512">http://quericy.me/blog/512</a><br/>
+本文引自：<a href="http://quericy.me/blog/512">http://quericy.me/blog/512</a><br/>
+本文引自：<a href="http://quericy.me/blog/512">http://quericy.me/blog/512</a><br/>
+重要的事情要说三遍！！！</p>
+</blockquote>
+
+<h2 id="toc_0">编译安装Strongswan</h2>
+
+<p>1、安装必须的库<br/>
+Ubuntu:</p>
+
+<pre><code class="language-bash">apt-get update
+apt-get install libpam0g-dev libssl-dev make gcc
+</code></pre>
+
+<p>CentOS:</p>
+
+<pre><code class="language-bash">yum update
+yum install pam-devel openssl-devel make gcc
+</code></pre>
+
+<p>2、下载strongswan并解压(*代表当前Strongswan版本号)</p>
+
+<pre><code class="language-bash">wget http://download.strongswan.org/strongswan.tar.gz
+tar xzf strongswan.tar.gz
+cd strongswan-*
+</code></pre>
+
+<p>3、编译Strongswan:<br/>
+Xen、KVM使用以下参数:</p>
+
+<pre><code class="language-bash">./configure  --enable-eap-identity --enable-eap-md5 \
+--enable-eap-mschapv2 --enable-eap-tls --enable-eap-ttls --enable-eap-peap  \
+--enable-eap-tnc --enable-eap-dynamic --enable-eap-radius --enable-xauth-eap  \
+--enable-xauth-pam  --enable-dhcp  --enable-openssl  --enable-addrblock --enable-unity  \
+--enable-certexpire --enable-radattr --enable-tools --enable-openssl --disable-gmp
+</code></pre>
+
+<p>4、编译并安装:<code>make; make install</code><br/>
+编译完成后如果没有报错,且使用ipsec version指令能出现版本信息,则表示安装成功.</p>
+
+<h2 id="toc_1">配置证书</h2>
+
+<p>1、生成CA证书的私钥</p>
+
+<pre><code class="language-bash">ipsec pki --gen --outform pem &gt; ca.pem
+</code></pre>
+
+<p>2、使用私钥，签名CA证书</p>
+
+<pre><code class="language-bash">ipsec pki --self --in ca.pem --dn &quot;C=CN, O=IT, CN=GoProxy&quot; --ca --outform pem &gt;ca.cert.pem
+</code></pre>
+
+<p><strong>提示:多个vps使用同个CA根证书:<br/>
+如果需要多个vps使用同一个CA根证书,则以上两步只执行一次,之后所有vps都使用上面生成的这两个ca.pem和ca.cert.pem文件进行后续的操作.然后把多台vps解析到同一个域名的不同二级域名下.这样客户端连接各个服务器时,只需要客户端安装一次根证书ca.cert.pem即可.</strong>*</p>
+
+<p>3、生成服务器证书所需的私钥:</p>
+
+<pre><code class="language-bash">ipsec pki --gen --outform pem &gt; server.pem
+</code></pre>
+
+<p>4、用CA证书签发服务器证书</p>
+
+<p>请先确认你的服务器的IP地址或域名,以后客户端连接时只能使用证书中的地址连接(多服务器使用相同根证书CA的,请先做好服务器的域名解析),然后将下面命令中的123.123.123.123替换为自己服务器的IP地址或域名,一共需要替换两处:</p>
+
+<pre><code class="language-bash">ipsec pki --pub --in server.pem | ipsec pki --issue --cacert ca.cert.pem \
+--cakey ca.pem --dn &quot;C=CN, O=IT, CN=123.123.123.123&quot; \
+--san=&quot;123.123.123.123&quot; --flag serverAuth --flag ikeIntermediate \
+--outform pem &gt; server.cert.pem
+</code></pre>
+
+<p><strong>注意:以上命令中的”C=”和”O=”的值要与第2步CA中的C,O的值保持一致.</strong></p>
+
+<p>5、生成客户端证书所需的私钥:</p>
+
+<pre><code class="language-bash">ipsec pki --gen --outform pem &gt; client.pem
+</code></pre>
+
+<p>6、用CA签名客户端证书(C,O的值要与上面第2步CA的值一致,CN的值随意):</p>
+
+<pre><code class="language-bash">ipsec pki --pub --in client.pem | ipsec pki --issue --cacert ca.cert.pem --cakey ca.pem --dn &quot;C=CN, O=IT, CN=GoProxy&quot; --outform pem &gt; client.cert.pem
+</code></pre>
+
+<p>7、生成pkcs12证书:注意以上命令中的”-caname”后面的引号里的值必须要与第2步CA中的”CN=”的值保持一致.</p>
+
+<pre><code class="language-bash">openssl pkcs12 -export -inkey client.pem -in client.cert.pem -name &quot;client&quot; -certfile ca.cert.pem -caname &quot;GoProxy&quot;  -out client.cert.p12
+</code></pre>
+
+<p>8、安装证书:</p>
+
+<pre><code class="language-bash">cp -r ca.cert.pem /usr/local/etc/ipsec.d/cacerts/
+cp -r server.cert.pem /usr/local/etc/ipsec.d/certs/
+cp -r server.pem /usr/local/etc/ipsec.d/private/
+cp -r client.cert.pem /usr/local/etc/ipsec.d/certs/
+cp -r client.pem  /usr/local/etc/ipsec.d/private/
+</code></pre>
+
+<h2 id="toc_2">配置Strongswan</h2>
+
+<p>1、编辑/usr/local/etc/ipsec.conf文件:<code>vim /usr/local/etc/ipsec.conf<br/>
+</code></p>
+
+<pre><code>config setup
+    uniqueids=never 
+
+conn iOS_cert
+    keyexchange=ikev1
+    fragmentation=yes
+    left=%defaultroute
+    leftauth=pubkey
+    leftsubnet=0.0.0.0/0
+    leftcert=server.cert.pem
+    right=%any
+    rightauth=pubkey
+    rightauth2=xauth
+    rightsourceip=10.31.2.0/24
+    rightcert=client.cert.pem
+    auto=add
+
+conn android_xauth_psk
+    keyexchange=ikev1
+    left=%defaultroute
+    leftauth=psk
+    leftsubnet=0.0.0.0/0
+    right=%any
+    rightauth=psk
+    rightauth2=xauth
+    rightsourceip=10.31.2.0/24
+    auto=add
+
+conn networkmanager-strongswan
+    keyexchange=ikev2
+    left=%defaultroute
+    leftauth=pubkey
+    leftsubnet=0.0.0.0/0
+    leftcert=server.cert.pem
+    right=%any
+    rightauth=pubkey
+    rightsourceip=10.31.2.0/24
+    rightcert=client.cert.pem
+    auto=add
+
+conn windows7
+    keyexchange=ikev2
+    ike=aes256-sha1-modp1024!
+    rekey=no
+    left=%defaultroute
+    leftauth=pubkey
+    leftsubnet=0.0.0.0/0
+    leftcert=server.cert.pem
+    right=%any
+    rightauth=eap-mschapv2
+    rightsourceip=10.31.2.0/24
+    rightsendcert=never
+    eap_identity=%any
+    auto=add
+</code></pre>
+
+<p>2、使用vim编辑/usr/local/etc/strongswan.conf文件:</p>
+
+<pre><code>charon {
+        load_modular = yes
+        duplicheck.enable = no
+        compress = yes
+        plugins {
+                include strongswan.d/charon/*.conf
+        }
+        dns1 = 8.8.8.8
+        dns2 = 8.8.4.4
+        nbns1 = 8.8.8.8
+        nbns2 = 8.8.4.4
+}
+include strongswan.d/*.conf
+</code></pre>
+
+<p>3、使用vim编辑/usr/local/etc/ipsec.secrets文件:</p>
+
+<pre><code>: RSA server.pem
+: PSK &quot;mima&quot;
+: XAUTH &quot;mima&quot;
+yonghuming %any : EAP &quot;mima&quot;
+</code></pre>
+
+<p><em>将上面的myPSKkey单词更改为你需要的PSK认证方式的密钥;<br/>
+将上面的myXAUTHPass单词更改为你需要的XAUTH认证方式的密码,该认证方式的用户名是随意的;<br/>
+将上面的[用户名]改为自己想要的登录名,[密码]改为自己想要的密码([]符号去掉),可以添加多行,得到多个用户,这即是使用IKEv2的用户名+密码认证方式的登录凭据.</em></p>
+
+<p><strong>提示:wp8.1客户端连接的用户名问题<br/>
+由于wp8.1连接IKEv2的vpn时,默认会加上与手机名称相同的域,于是连接时会显示用户名或密码错误.这里有两种解决方法:<br/>
+方法1:将上面/usr/local/etc/ipsec.secrets文件的最后一行改为%any %any : EAP “[密码]” ,这样就可以使用任意用户名登录,带上域也不会出错.<br/>
+方法2:用FreeRADIUS过滤掉登录名的域,参考连接:让FreeRADIUS去掉登陆用户名中的Windows登录域</strong></p>
+
+<h2 id="toc_3">配置防火墙</h2>
+
+<p>1、编辑/etc/sysctl.conf，将net.ipv4.ip_forward=1一行前面的#号去掉(否则Ikev2 vpn连接上后将无法访问外网)，保存后执行sysctl -p(如果执行后有报错的,重新打开sysctl.conf将报错的部分#注释掉保存,直到执行sysctl -p不再报错为止)。</p>
+
+<p>2、配置iptables:</p>
+
+<pre><code class="language-bash">iptables -A FORWARD -m state --state RELATED,ESTABLISHED -j ACCEPT
+iptables -A FORWARD -s 10.31.0.0/24  -j ACCEPT
+iptables -A FORWARD -s 10.31.1.0/24  -j ACCEPT
+iptables -A FORWARD -s 10.31.2.0/24  -j ACCEPT
+iptables -A INPUT -i eth0 -p esp -j ACCEPT
+iptables -A INPUT -i eth0 -p udp --dport 500 -j ACCEPT
+iptables -A INPUT -i eth0 -p tcp --dport 500 -j ACCEPT
+iptables -A INPUT -i eth0 -p udp --dport 4500 -j ACCEPT
+iptables -A INPUT -i eth0 -p udp --dport 1701 -j ACCEPT
+iptables -A INPUT -i eth0 -p tcp --dport 1723 -j ACCEPT
+iptables -A FORWARD -j REJECT
+iptables -t nat -A POSTROUTING -s 10.31.0.0/24 -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 10.31.1.0/24 -o eth0 -j MASQUERADE
+iptables -t nat -A POSTROUTING -s 10.31.2.0/24 -o eth0 -j MASQUERADE
+</code></pre>
+
+<p>3、开机自动载入iptables:<br/>
+Ubuntu:</p>
+
+<pre><code class="language-bash">iptables-save &gt; /etc/iptables.rules
+cat &gt; /etc/network/if-up.d/iptables&lt;&lt;EOF
+#!/bin/sh
+iptables-restore &lt; /etc/iptables.rules
+EOF
+chmod +x /etc/network/if-up.d/iptables
+</code></pre>
+
+<p>至此,IPSec/IKEv2 VPN便搭建好了!现在启用服务就可以使用了:</p>
+
+<pre><code class="language-bash">ipsec start
+</code></pre>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

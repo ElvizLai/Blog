@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         Linux中常用操作命令 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">Linux中常用操作命令</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2015-11-15T16:20:13+08:00" itemprop="datePublished">2015/11/15</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>记录下Linux的常用命令，以备不时之需。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>常见指令:</p>
+
+<pre><code class="language-bash">ls　　        显示文件或目录
+     -l          列出文件详细信息l(list)
+     -a          列出当前目录下所有文件及目录，包括隐藏的a(all)
+mkdir        创建目录
+     -p          创建目录，若无父目录，则创建p(parent)
+cd           切换目录
+touch        创建空文件
+echo         创建带有内容的文件。
+cat          查看文件内容
+cp           拷贝
+mv           移动或重命名
+rm           删除文件
+     -r          递归删除，可删除子目录及文件
+     -f          强制删除
+find         在文件系统中搜索某文件
+wc           统计文本中行数、字数、字符数
+grep         在文本文件中查找某个字符串
+rmdir        删除空目录
+tree         树形结构显示目录，需要安装tree包
+pwd          显示当前目录
+ln           创建链接文件
+more、less   分页显示文本文件内容
+head、tail   显示文件头、尾内容
+ctrl+alt+F1  命令行全屏模式
+</code></pre>
+
+<p>系统管理命令:</p>
+
+<pre><code class="language-bash">stat         显示指定文件的详细信息，比ls更详细
+who          显示在线登陆用户
+whoami       显示当前操作用户
+hostname     显示主机名
+uname        显示系统简要信息
+     -a          显示系统完整信息
+top          动态显示当前耗费资源最多进程信息
+ps           显示瞬间进程状态 ps aux
+     -ef         显示系统常驻进程
+du           查看目录大小 du -h /home带有单位显示目录信息
+df           查看磁盘大小 df -h 带有单位显示磁盘信息
+ifconfig     查看网络情况
+ping         测试网络连通
+netstat      显示网络状态信息
+man          显示命令手册
+clear        清屏
+alias        对命令重命名 如：alias showmeit=”ps aux” ，另外解除使用unaliax showmeit
+kill         杀死进程，可以先用 ps 或 top 命令查看进程的id，然后再用kill命令杀死进程。
+</code></pre>
+
+<p>打包压缩相关命令:</p>
+
+<pre><code class="language-bash">gzip：
+bzip2：
+tar:            打包压缩
+     -c             归档文件
+     -x             解压缩文件
+     -z             gzip压缩文件
+     -j             bzip2压缩文件
+     -v             显示压缩或解压缩过程 v(view)
+     -f             使用档名
+例：
+tar -cvf /home/abc.tar /home/abc            只打包，不压缩
+tar -zcvf /home/abc.tar.gz /home/abc        打包，并用gzip压缩
+tar -jcvf /home/abc.tar.bz2 /home/abc       打包，并用bzip2压缩
+
+如果想解压缩，就直接替换上面的命令  tar -cvf  / tar -zcvf  / tar -jcvf 中的“c” 换成“x” 就可以了。
+</code></pre>
+
+<p>关机/重启机器:</p>
+
+<pre><code class="language-bash">shutdown
+     -r           关机重启
+     -h           关机不重启
+     now          立刻关机
+halt             关机
+reboot           重启
+</code></pre>
+
+<p>Linux管道:</p>
+
+<p>将一个命令的标准输出作为另一个命令的标准输入。也就是把几个命令组合起来使用，后一个命令处理前一个命令的输出结果。</p>
+
+<p>例：<code>grep -r “close” /home/* | more</code></p>
+
+<p>在home目录下所有文件中查找，包括close的文件，并分页输出。</p>
+
+<p>Linux软件包管理(centos:yum;ubuntu:apt-get):</p>
+
+<p>以ubnuntu下安装tree为例:</p>
+
+<pre><code class="language-bash">sudo apt-get install tree  安装tree
+sudo apt-get remove tree  卸载tree
+sudo apt-get update  更新软件
+sudo apt-get upgrade
+</code></pre>
+
+<p>vim使用:<br/>
+vim三种模式：命令模式、插入模式、编辑模式。使用ESC或i或：来切换模式。<br/>
+命令模式下：</p>
+
+<pre><code class="language-bash">:q                      退出
+:q!                     强制退出
+:wq                   保存并退出
+:set number      显示行号
+:set nonumber  隐藏行号
+/apache            在文档中查找字符apache，按n跳到下一个，shift+n上一个
+yyp                  复制光标所在行，并粘贴
+h(左移一个字符←)、j(下一行↓)、k(上一行↑)、l(右移一个字符→)
+</code></pre>
+
+<p>用户及用户组管理</p>
+
+<pre><code class="language-bash">/etc/passwd      存储用户账号
+/etc/group       存储组账号
+/etc/shadow      存储用户账号的密码
+/etc/gshadow     存储用户组账号的密码
+useradd user     添加用户
+userdel user     删除用户
+groupadd user    添加组用户
+groupdel user    删除组用户
+passwd root      给用户root设置密码
+su root          临时提权到root用户
+su – root        切换到root用户
+/etc/profile     系统环境变量
+bash_profile     用户环境变量
+.bashrc          用户环境变量
+su user          切换用户，加载配置文件.bashrc
+su – user        切换用户，加载配置文件/etc/profile ，加载bash_profile
+</code></pre>
+
+<p>更改文件的用户及用户组</p>
+
+<pre><code class="language-bash">sudo chown [-R递归] owner[:group] {File|Directory}
+要想切换文件所属的用户及组。可以使用命令。
+sudo chown root:root rarlinux-x64-5.1.b3.tar.gz
+</code></pre>
+
+<p>文件权限管理</p>
+
+<p>三种基本权限</p>
+
+<pre><code class="language-bash">R    读        数值表示为4
+W    写        数值表示为2
+X    可执行     数值表示为1
+</code></pre>
+
+<p>更改权限<br/>
+sudo chmod [u所属用户  g所属组  o其他用户  a所有用户]  [+增加权限  -减少权限]  [r  w  x]   目录名 <br/>
+例如：有一个文件filename，权限为“-rw-r—-x” ,将权限值改为”-rwxrw-r-x”，用数值表示为765<br/>
+<code>sudo chmod u+x g+w o+r  filename</code></p>
+
+<p>上面的例子可以用数值表示<code>sudo chmod 765 filename</code></p>
+
+<p>网络相关</p>
+
+<pre><code>netstat -tunlp 显示所有端口及对应的应用程序
+netstat -anp 显示系统端口使用情况
+lsof -i:端口号 查看某一端口的占用情况
+</code></pre>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

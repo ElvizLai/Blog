@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         gRPC实战 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">gRPC实战</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2016-02-24T15:37:14+08:00" itemprop="datePublished">2016/2/24</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <h4 id="toc_0"><a href="http://www.grpc.io" title="gRPC">gRPC</a>是Google出品的一款基于<a href="https://developers.google.com/protocol-buffers/" title="Protobuf">Protobuf</a>与HTTP/2的高性能开源RPC通信框架。</h4>
+
+<span id="more"></span><!-- more -->
+
+<h3 id="toc_1">1、基础配置</h3>
+
+<p>下载protobuf IDL解析所需的 protoc 与 protoc-gen-go 二进制可执行文件配置</p>
+
+<p>偷懒，直接下载对应平台下的protoc：<a href="https://github.com/google/protobuf/releases">https://github.com/google/protobuf/releases</a><br/>
+protoc-gen-go:<code>go get -u github.com/golang/protobuf/protoc-gen-go</code><br/>
+然后就可通过protoc指令愉快的生成对应的文件了.</p>
+
+<h3 id="toc_2">2、撰写IDL</h3>
+
+<p>新建文件<code>hello.proto</code>内容如下：</p>
+
+<pre><code>syntax = &quot;proto3&quot;;//使用的protobuf版本，默认为2，但是我们要用最新的3，所以要在首行非注释部分声明
+package hello;//对应生成go文件的包名
+
+// The greeting service definition.
+service Greeter {
+  // Sends a greeting
+  rpc SayHello (HelloRequest) returns (HelloReply) {}
+}
+
+// The request message containing the user&#39;s name.
+message HelloRequest {
+  string name = 1;
+  int64 age = 2;
+}
+
+// The response message containing the greetings
+message HelloReply {
+  string message = 1;
+  int64 age = 2;
+}
+</code></pre>
+
+<p>然后执行</p>
+
+<pre><code>protoc ./*.proto --go_out=plugins=grpc:.
+</code></pre>
+
+<p>来生成*.pb.go文件供服务端与客户端调用。（PS：要cd到文件所在目录）</p>
+
+<h3 id="toc_3">3、服务端</h3>
+
+<pre><code class="language-go">// server is used to implement hello.GreeterServer.
+type server struct{}
+
+// SayHello implements hello.GreeterServer
+func (s *server) SayHello(ctx context.Context, in *hello.HelloRequest) (*hello.HelloReply, error) {
+    fmt.Println(&quot;request comming...&quot;)
+    return &amp;hello.HelloReply{Message: &quot;Hello &quot; + in.Name, Age:28}, nil
+}
+
+func main() {
+    lis, err := net.Listen(&quot;tcp&quot;, &quot;:50051&quot;)
+    if err != nil {
+        log.Fatalf(&quot;failed to listen: %v&quot;, err)
+    }
+
+    s := grpc.NewServer()
+    hello.RegisterGreeterServer(s, &amp;server{})
+    s.Serve(lis)
+}
+</code></pre>
+
+<h3 id="toc_4">4、客户端</h3>
+
+<pre><code class="language-go">const (
+    address = &quot;localhost:50051&quot;
+    defaultName = &quot;world&quot;
+)
+
+func main() {
+    conn, err := grpc.Dial(address, grpc.WithInsecure())
+    if err != nil {
+        log.Fatalf(&quot;did not connect: %v&quot;, err)
+    }
+    defer conn.Close()
+
+    c := hello.NewGreeterClient(conn)
+
+    r, err := c.SayHello(context.Background(), &amp;hello.HelloRequest{Name: defaultName, Age:32})
+
+    if err != nil {
+        log.Fatalf(&quot;could not greet: %v&quot;, err)
+    }
+    
+    fmt.Printf(&quot;Greeting: %s&quot;, r.String())
+}
+
+</code></pre>
+
+<h3 id="toc_5">5、Context传值</h3>
+
+<p>可以使用metadata在context中在服务端与客户端之间进行上下文交互。</p>
+
+<p>对于客户端发送值：</p>
+
+<pre><code>ctx := metadata.NewContext(
+            context.Background(),
+            metadata.Pairs(&quot;key1&quot;, &quot;val1&quot;, &quot;key2&quot;, &quot;val2&quot;),
+        )
+</code></pre>
+
+<p>对于服务端取值：</p>
+
+<pre><code>md, _ := metadata.FromContext(ctx)
+fmt.Println(md[&quot;key1&quot;])
+</code></pre>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

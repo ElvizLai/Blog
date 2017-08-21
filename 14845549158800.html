@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         JavaScript中模拟form提交文件 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">JavaScript中模拟form提交文件</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2015-09-10T16:21:55+08:00" itemprop="datePublished">2015/9/10</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>在页面中提交文件可以直接使用：</p>
+
+<pre><code class="language-javascript">&lt;form action=&quot;/upload&quot; name=&quot;fileinfo&quot; method=&quot;post&quot; enctype=&quot;multipart/form-data&quot;&gt;
+    &lt;div class=&quot;form-group&quot;&gt;
+        &lt;input type=&quot;file&quot; name=&quot;file&quot;/&gt;
+    &lt;/div&gt;
+    &lt;button type=&quot;submit&quot; class=&quot;btn btn-default&quot;&gt;Submit&lt;/button&gt;
+&lt;/form&gt;
+</code></pre>
+
+<p>来将文件提交到服务器。可是如果使用js来模拟提交的时候应该如何处理呢？ 使用iframe？早就过时了！使用html5的FormData吧！</p>
+
+<span id="more"></span><!-- more -->
+
+<p>还是以上面的表单为例，看下使用FormData跟XMLHttpRequest组合是如何提交表单的。</p>
+
+<pre><code class="language-javascript">&lt;script&gt;
+    function sendForm() {
+        var oData = new FormData(document.forms.namedItem(&quot;fileinfo&quot;));//表单的name，直接把表单拉过来。
+
+        oData.append(&quot;username&quot;, &quot;elvizlai&quot;);//如果还需要额外添加数据的话，使用append方法丢进去即可。
+
+        var oReq = new XMLHttpRequest();
+        oReq.open(&quot;POST&quot;, &quot;/upload&quot;, true);
+        oReq.onload = function(oEvent) {
+            if (oReq.status == 200) {
+                alert(oReq.responseText);
+            } else {
+                alert(oReq.status)
+            }
+        };
+
+        oReq.send(oData);
+    }
+&lt;/script&gt;
+</code></pre>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

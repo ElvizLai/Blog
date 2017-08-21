@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         Git SSH key 的初始化 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">Git SSH key 的初始化</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2014-03-11T16:33:28+08:00" itemprop="datePublished">2014/3/11</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <h4 id="toc_0">简单的记录下生成ssh key的过程，免得每次都要到处去找。</h4>
+
+<span id="more"></span><!-- more -->
+
+<ul>
+<li><p>Step0. 首先看下机器中是否已经存在SSH keys，列出改目录下的所有文件：<br/>
+<code>bash<br/>
+ls -al ~/.ssh<br/>
+</code><br/>
+如果有文件，且知道密码的话，可以直接跳到第x步，否则需要重新生成一份SSH key。</p></li>
+<li><p>Step1. 进入.ssh目录<code>cd ~/.ssh</code>，然后运行以下命令生成rsa的key：<br/>
+<code>bash<br/>
+ssh-keygen -t rsa -C &quot;your_email@example.com&quot;<br/>
+</code><br/>
+首先输入需要的文件名，例如<code>git_rsa</code>，然后输入两次密码确认。这样，key就生成了。</p></li>
+<li><p>Step2. 然后将新生成的key加入到ssh-agent中：<br/>
+<code>bash<br/>
+eval &quot;$(ssh-agent -s)&quot;<br/>
+ssh-add ~/.ssh/git_rsa<br/>
+</code><br/>
+但是这样有一个问题，总不能每次开terminal都要运行下上述命令吧，需要编辑文件<code>etc/ssh_config</code>，在IdentityFile处添加我们自己生成的<code>git_rsa</code>路径：<code>.ssh/git_rsa</code></p></li>
+<li><p>Step3. 将git_rsa.pub的内容拷贝到粘贴板中:<br/>
+<code>bash<br/>
+pbcopy &lt; ~/.ssh/git_rsa.pub<br/>
+</code></p></li>
+<li><p>Step4. 将这个key添加到网页中的SSHkey部分。</p></li>
+</ul>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

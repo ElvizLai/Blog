@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         Node 学习笔记(0) - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">Node 学习笔记(0)</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2014-05-20T16:29:57+08:00" itemprop="datePublished">2014/5/20</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>现在的移动客户端，还是非常依赖于与后端的交互，更多的是做了一个前端的呈现。可以理解成是一个高级的Web，那么问题来了！单单掌握移动应用的开发已经不能满足个人对于成长渴望的需求，选择一门适合自己的后端开发技术--Node.js,一个继承发展于Javascript的技术。在此记录下学习的经历历程。快速过了一遍javascript语言，总结下该语言的一点特点。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>1、数据类型，可以用捉襟见肘来形容.</p>
+
+<pre><code class="language-javascript">var number = 1;
+var str1 = &#39;1&#39;;
+var str2 = &quot;1&quot;;//单引号与双引号一样，但闭合的时候不可混用
+
+var array = [1,2,&quot;3&quot;];//与java不同的是，数组内的值类型可以不同
+console.log(array[2]);
+
+var obj = {fruit:&quot;apple&quot;};
+console.log(obj.fruit);
+console.log(obj[&quot;fruit&quot;]);
+</code></pre>
+
+<p>2、Number类型，既然类型少的可怜，那么如何来判断变量的类型？使用typeof</p>
+
+<pre><code class="language-javascript">typeof 10  -&gt;number
+typeof &quot;10&quot;  -&gt;string
+typeof function(){}  -&gt;function
+</code></pre>
+
+<p>而且惊奇的发现<code>10==&quot;10&quot;</code>返回的是<code>true</code>，要想做严格判断，需要使用三连等<code>===</code>，标志类型与值都相同。</p>
+
+<p>0可以作为被除数，即<code>5/0</code>是合法的，但是返回<code>Infinity</code></p>
+
+<p>虽然js没有这么多类型，但是无法使用<code>string</code>类型直接做科学计算的，需要先使用方法<code>parseInt(numStr)</code>或<code>parseFloat(folatStr)</code>，将其转换为对应的<code>number</code>类型。当转换一个非number的string时会返回NaN(not a number)。<br/>
+使用<code>isNaN(value)</code>函数来判断其是否为数值。<code>isFinite(value)</code>来判断其是否有限。</p>
+
+<p>3、Boolean，不像其他语言分的那么细，js的boolean类型分的较为粗暴：<br/>
+* false,0,&quot;&quot;,NaN,null,undefined都是false<br/>
+* 其他皆true</p>
+
+<p>4、String类型拥有length属性，通过str.length来返回字符串的长度，但是访问未定义或null的字符串会抛出异常。</p>
+
+<pre><code class="language-javascript">var str1 = &quot;good good study&quot;
+str1.length  -&gt;15
+var str2;
+str2.length  -&gt;异常！
+var str3 = null;
+str3.length  -&gt;异常！
+</code></pre>
+
+<p><code>longStr.indexOf(shortStr)</code>函数返回shortStr在longStr中的索引，不存在则返回-1</p>
+
+<p><code>substr(indexfrom,offset)</code>返回子字符串</p>
+
+<p><code>slice(indexfrom,indexto)</code>返回子字符串，上面两个的功能是一样的，只不过形式不同，从里面的参数就可知道怎么用了吧。</p>
+
+<p><code>split(sign)</code>将字符串按sign符号切割成数组，跟java用法一样啦</p>
+
+<p><code>trim()</code>去掉字符串中的空格</p>
+
+<p>5、正则表达式，两种创建正则表达式的形式：</p>
+
+<pre><code class="language-javascript">/[aA]{2,}/
+new RegExp(&quot;[aA]{2,}&quot;)
+</code></pre>
+
+<p>使用replace+regexp可以完成很多事情：</p>
+
+<pre><code class="language-javascript">&quot;aaoo&quot;.replace(/[aA]{2,}/,&quot;b&quot;)  -&gt;boo
+&quot;aaoo&quot;.search(/[Aa]{2,})  -&gt;0
+</code></pre>
+
+<p>6、Object对象，对象的创建方式有两种：</p>
+
+<pre><code class="language-javascript">var o1 = new Object();
+var o2 = {};
+var o3 = {name:&quot;ElvizLai&quot;,age:26};//创建+初始化
+</code></pre>
+
+<p>需要注意的是：</p>
+
+<pre><code class="language-javascript">var o1 = {name:&#39;ElvizLai&#39;,age:26};//因为试用了单引号，作为object是合法的，但是不能作为json，不能作为json的另一个理由是age也没有用双引号引起。
+var o2 = {&quot;name&quot;:&quot;ElvizLai&quot;,&quot;age&quot;:26};//object与json都合法
+</code></pre>
+
+<p>js中需要频繁用到<code>JSON.stringify()</code>与<code>JSON.parse()</code>来做对象与json字符串之间的转换。</p>
+
+<p>对象添加属性直接用.引用新的属性即可，不需要再次声明<code>o2.gender = &quot;male&quot;</code></p>
+
+<p>直接访问不存在的属性会返回<code>undefined</code>，删除属性使用<code>delete o2.gender</code></p>
+
+<p>7、Arrays 定义数组也是两种方式：</p>
+
+<pre><code class="language-javascript">var arr1 = new Array();
+var arr2 = [];
+</code></pre>
+
+<p>有一点需要注意的是，array其实是特殊的object，不信请看：typeof arr2  -&gt;object。那么如何来判定到底是array还是object呢？使用<code>Array.isArray(value)</code>来判断。</p>
+
+<p>使用push将变量加到数组的最末尾<code>arr2.push(&quot;cat&quot;)</code>，如果你足够自信，使用arr[3]=&quot;cat&quot;的方式将cat字符串放到arr的第三个位置，但是如果arr初始化时为空，那么新数组长这样<code>[,,&#39;cat&#39;]</code>;push对应的肯定是pop啦，没错，试用pop()将数组的末位弹出，数组的长度-1。对比的如果使用delete arr[arr.length-1]，虽然末位的元素去掉了（其实替换成了[&quot;a&quot;,&quot;a&quot;,]），数组的长度不会发生变化。<br/>
+在数组的前面添加数据使用<code>arr.unshift(value)</code>，与之对应的，移除最前面的元素使用<code>shift()</code>;数组变成字符串使用：<code>arr.join(&#39;,&#39;)</code><br/>
+对于V8引擎下的js，遍历数组乐意使用forEach()方法：</p>
+
+<pre><code class="language-javascript">var arr = [1,2,3,&quot;4&quot;];
+arr.forEach(function (value) {
+    console.log(value);
+})
+</code></pre>
+
+<p>8、方法（函数）functions 除了与其他程序类似的传统方法之外，js可以将方法直接赋值给变量，可以直接使用变量操作方法：</p>
+
+<pre><code class="language-javascript">function add1(a,b){
+    return a+b;
+}
+
+var add2 = function (a,b) {
+    return a+b;
+}
+
+console.log(add1(2,3));
+console.log(add2(2,3));
+</code></pre>
+
+<p>js另一个逆天之处就在于函数传递，它可以这样：</p>
+
+<pre><code class="language-javascript">function say(word) {
+  console.log(word);
+}
+
+function execute(someFunction, value) {
+  someFunction(value);
+}
+
+execute(say, &quot;Hello&quot;);
+</code></pre>
+
+<p>9、类（class），与java等语言不通的是，js的类是一个function，像这样：</p>
+
+<pre><code class="language-javascript">function People(name)
+{
+  //this指的是公共变量，可以通过实例化后从外部直接访问到。
+  this.name=name;
+  //对象方法
+  this.Introduce=function(){
+    console.log(&quot;My name is &quot;+this.name);
+  }
+}
+//类方法，有点像java中的static
+People.Run=function(){
+  console.log(&quot;I can run&quot;);
+}
+//原型方法，有点像java的多态
+People.prototype.IntroduceChinese=function(){
+  console.log(&quot;我的名字是&quot;+this.name);
+}
+
+//测试
+
+var p1=new People(&quot;ElvizLai&quot;);
+
+p1.Introduce();
+
+People.Run();
+
+p1.IntroduceChinese(); 
+</code></pre>
+
+<p>扩展的介绍下prototype：</p>
+
+<pre><code class="language-javascript">function baseClass()
+{
+  this.showMsg = function()
+  {
+     console.log(&quot;baseClass::showMsg&quot;);   
+  }
+}
+
+function extendClass()
+{
+}
+
+extendClass.prototype = new baseClass();
+var instance = new extendClass();
+instance.showMsg(); // 显示baseClass::showMsg
+</code></pre>
+
+<p>是不是找到了java中多态的感觉？继续看，如果extendClass中本身包含有一个与baseClass的方法同名的方法会怎么样？：</p>
+
+<pre><code class="language-javascript">function baseClass()
+{
+    this.showMsg = function()
+    {
+        console.log(&quot;baseClass::showMsg&quot;);   
+    }
+}
+
+function extendClass()
+{
+    this.showMsg =function ()
+    {
+        console.log(&quot;extendClass::showMsg&quot;);
+    }
+}
+
+extendClass.prototype = new baseClass();
+var instance = new extendClass();
+
+instance.showMsg();//显示extendClass::showMsg
+</code></pre>
+
+<p>函数运行时会先去本体的函数中去找，如果找到则运行，找不到则去prototype中寻找函数。或者可以理解为prototype不会克隆同名函数。</p>
+
+<p>那么问题来了，如果我想使用extendClass的一个实例instance调用baseClass的对象方法showMsg怎么办？使用<code>call</code></p>
+
+<pre><code class="language-javascript">extendClass.prototype = new baseClass();
+var instance = new extendClass();
+
+
+var baseinstance = new baseClass();
+baseinstance.showMsg.call(instance);//显示baseClass::showMsg
+</code></pre>
+
+<p>这个也没太搞清楚，直接用<code>new baseClass().showMsg()</code>不就可以了吗？</p>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

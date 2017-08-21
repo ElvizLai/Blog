@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         Node 学习笔记(1) - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">Node 学习笔记(1)</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2014-05-25T16:28:49+08:00" itemprop="datePublished">2014/5/25</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>总是搞Android，客户端需要依赖Client啊，那么问题来咯，Server端不能总是依赖别人吧，选定Node.js作为后端Server，整理一下<code>Node.js</code>学习中遇到的一些问题及小技巧。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>Tip1. <code>npm install &lt;pg&gt; -g</code>后面的-g表示是全局(global)</p>
+
+<p>Tip2. 每次修改完代码都要重启再调试？那不烦死？试试<code>sudo npm install supervisor -g</code>，然后让它守护你吧<code>supervisor app.js</code></p>
+
+<p>Tip3. express 项目的目录结构：<br/>
+* app.js： 毋庸置疑，项目入口<br/>
+* node_modules： 存放项目的依赖库<br/>
+* package.json：配置信息，使用<code>npm init</code>初始化，添加模块的时候，添加<code>--save</code>命令将其同步到配置文件中，这个作用更大是在于远程部署的时候，直接提交即可，而不是提交一堆node_modules<br/>
+* public：静态文件 css,js,img<br/>
+* routes：路由<br/>
+* views：页面文件，习惯用ejs模板，jade的严格缩进实在是难以接受。。。</p>
+
+<p>Tip4. 读取形如<a href="http://1024code.com?userName=ElvizLai&amp;psw=admin%E5%8F%82%E6%95%B0%E9%9C%80%E8%A6%81%E4%BD%BF%E7%94%A8query%EF%BC%8C%E4%BB%A3%E7%A0%81%EF%BC%9A">http://1024code.com?userName=ElvizLai&amp;psw=admin参数需要使用query，代码：</a></p>
+
+<pre><code class="language-javascript">app.get(&#39;/login&#39;,function(req,res){
+    var userName = req.query.userName;
+    var password = req.query.psw;
+});
+</code></pre>
+
+<p>Tip5. 读取POST参数的时候需要使用body-parser中间件，但是会遇到个坑，如果对方不传content-type = application/json的时候，就要直接解析stream了。所以双保险的做法应该是这样：</p>
+
+<pre><code class="language-javascript">var bodyParser = require(&#39;body-parser&#39;);
+
+app.use(bodyParser.json());
+app.use(express.bodyParser());
+
+app.post(&#39;/login&#39;, function (req, res) {
+    if(req.body.userName&amp;&amp;req.body.psw){
+    //client按规矩传送了content-type，可以直接获取
+    }else{
+    //对方不按规矩^_^&#39;&#39;&#39;
+        var body=&#39;&#39;,jsonStr;
+        req.on(&#39;data&#39;,function(chunk){
+            body+=chunk;
+        });
+
+        req.on(&#39;end&#39;,function(){
+            try{
+                jsonStr = JSON.parse(body);
+                //jsonStr是获取的jsonObject
+            }catch(err){
+                jsonStr=&#39;{&quot;code&quot;:1,&quot;msg&quot;:&quot;JSON Error!&quot;}&#39;;
+                res.send(JSON.parse(jsonStr));
+            }
+        });
+    }
+});
+</code></pre>
+
+<p>Tip6. 重定向使用<code>redirect</code>，例如：</p>
+
+<pre><code class="language-javascript">app.get(&#39;/&#39;,function(req,res){
+  res.redirect(&quot;/portal&quot;);
+});
+</code></pre>
+
+<p>Tip7. 解析ejs或者jade试用render，可以合理的设置一写options：</p>
+
+<pre><code class="language-javascript">app.get(&#39;/portal&#39;,function(req,res){
+    res.render(&quot;portal&quot;,{
+    title:&quot;ElvizLai_Demo&quot;,
+    content:&quot;template&quot;
+  });
+});
+</code></pre>
+
+<p>好了，目前遇到的一些问题就这些，目前还处于且短期内还会处于Node开发的初级阶段。。。加油！</p>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

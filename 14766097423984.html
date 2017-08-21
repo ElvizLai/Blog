@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         HBase golang初探 - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">HBase golang初探</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2016-10-09T17:22:22+08:00" itemprop="datePublished">2016/10/9</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>最近要进行大数据相关的任务，牛刀小试，先将最基础的HBase搭建并实践起来。本文借用docker，快速搭建HBase基础环境，并使用go结合thrift调用相关API进行数据操作。</p>
+
+<span id="more"></span><!-- more -->
+
+<p>0、方便起见，需要一个docker环境，安装配置略过不表。</p>
+
+<p>1、拉取image</p>
+
+<pre><code>docker pull harisekhon/hbase
+</code></pre>
+
+<p>2、修改entrypoint.sh，启用thrift2</p>
+
+<pre><code>/hbase/bin/hbase-daemon.sh start thrift2
+</code></pre>
+
+<p>3、挂载修改后的启动文件，启动hbase，并暴露thrift2端口</p>
+
+<pre><code>docker run -d -p 9090:9090 -v `pwd`/entrypoint.sh:/entrypoint.sh --name hbase harisekhon/hbase
+</code></pre>
+
+<p>4、运行hbase shell，建表</p>
+
+<pre><code>docker exec -it hbase bash
+
+hbase shell
+
+// 建表
+create &#39;elvizlai_test&#39;,{NAME =&gt; &#39;f1&#39;, VERSIONS =&gt; 2},{NAME =&gt; &#39;f2&#39;, VERSIONS =&gt; 2}
+
+// 删除表
+disable &#39;elvizlai_test&#39;
+drop &#39;elvizlai_test&#39;
+</code></pre>
+
+<p>4、thrift for mac安装，感谢homebrew</p>
+
+<pre><code>brew install thrift
+</code></pre>
+
+<p>5、下载hbase thrift2对应的hbase.thrift文件，生成go package</p>
+
+<pre><code>wget https://raw.githubusercontent.com/apache/hbase/master/hbase-thrift/src/main/resources/org/apache/hadoop/hbase/thrift2/hbase.thrift
+thrift -r -out . --gen go *.thrift
+</code></pre>
+
+<p>6、撰写main.go一探究竟吧</p>
+
+<pre><code class="language-go">package main
+
+import (
+    &quot;encoding/binary&quot;
+    &quot;fmt&quot;
+    &quot;hbase&quot;
+    &quot;reflect&quot;
+    &quot;strconv&quot;
+    &quot;time&quot;
+
+    &quot;git.apache.org/thrift.git/lib/go/thrift&quot;
+)
+
+const HOST = &quot;127.0.0.1&quot;
+const PORT = &quot;9090&quot;
+const TESTRECORD = 10
+
+func main() {
+    startTime := currentTimeMillis()
+    logformatstr_ := &quot;----%s\n&quot;
+    logformatstr := &quot;----%s 用时:%d-%d=%d毫秒\n\n&quot;
+    logformattitle := &quot;建立连接&quot;
+
+    table := &quot;elvizlai_test&quot;
+    rowkey := &quot;1&quot;
+    family := &quot;f1&quot;
+
+    protocolFactory := thrift.NewTBinaryProtocolFactoryDefault()
+
+    transport, err := thrift.NewTSocket(HOST + &quot;:&quot; + PORT)
+    if err != nil {
+        panic(err)
+    }
+
+    client := hbase.NewTHBaseServiceClientFactory(transport, protocolFactory)
+
+    if err := transport.Open(); err != nil {
+        panic(err)
+    }
+    tmpendTime := currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, startTime, (tmpendTime - startTime))
+    defer transport.Close()
+
+    //--------------Exists
+    logformattitle = &quot;调用Exists方法&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime := currentTimeMillis()
+    isexists, err := client.Exists([]byte(table), &amp;hbase.TGet{Row: []byte(rowkey)})
+    fmt.Printf(&quot;rowkey{%s} in table{%s} Exists:%t\n&quot;, rowkey, table, isexists)
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //--------------Put
+    logformattitle = &quot;调用Put方法写数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    cvarr := []*hbase.TColumnValue{
+        {
+            Family:    []byte(family),
+            Qualifier: []byte(&quot;idoall.org&quot;),
+            Value:     []byte(&quot;welcome idoall.org&quot;),
+        },
+    }
+    temptput := hbase.TPut{Row: []byte(rowkey), ColumnValues: cvarr}
+    err = client.Put([]byte(table), &amp;temptput)
+    if err != nil {
+        fmt.Printf(&quot;Put err:%s\n&quot;, err)
+    } else {
+        fmt.Println(&quot;Put done&quot;)
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //------------Get---------------
+    logformattitle = &quot;调用Get方法获取新增加的数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+
+    result, err := client.Get([]byte(table), &amp;hbase.TGet{Row: []byte(rowkey)})
+    if err != nil {
+        fmt.Printf(&quot;Get err:%s\n&quot;, err)
+    } else {
+        fmt.Println(&quot;Rowkey:&quot; + string(result.Row))
+        for _, cv := range result.ColumnValues {
+            printscruct(cv)
+        }
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //--------------put update
+    logformattitle = &quot;调用Put update方法&#39;修改&#39;数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    cvarr = []*hbase.TColumnValue{
+        {
+            Family:    []byte(family),
+            Qualifier: []byte(&quot;idoall.org&quot;),
+            Value:     []byte(&quot;welcome idoall.org---update&quot;),
+        },
+    }
+    temptput = hbase.TPut{Row: []byte(rowkey), ColumnValues: cvarr}
+    err = client.Put([]byte(table), &amp;temptput)
+    if err != nil {
+        fmt.Printf(&quot;Put update err:%s\n&quot;, err)
+    } else {
+        fmt.Println(&quot;Put update done&quot;)
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //------------Get  update---------------
+    logformattitle = &quot;调用Get方法获取&#39;修改&#39;后的数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    //
+    result, err = (client.Get([]byte(table), &amp;hbase.TGet{Row: []byte(rowkey)}))
+    if err != nil {
+        fmt.Printf(&quot;Get update err:%s\n&quot;, err)
+    } else {
+        fmt.Println(&quot;update Rowkey:&quot; + string(result.Row))
+        for _, cv := range result.ColumnValues {
+            printscruct(cv)
+        }
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //------------DeleteSingle------------
+    logformattitle = &quot;调用DeleteSingle方法删除一条数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    tdelete := hbase.TDelete{Row: []byte(rowkey)}
+    err = client.DeleteSingle([]byte(table), &amp;tdelete)
+    if err != nil {
+        fmt.Printf(&quot;DeleteSingle err:%s\n&quot;, err)
+    } else {
+        fmt.Print(&quot;DeleteSingel done\n&quot;)
+    }
+
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //-------------PutMultiple----------------
+    logformattitle = &quot;调用PutMultiple方法添加&quot; + strconv.Itoa(TESTRECORD) + &quot;条数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+
+    var tputArr []*hbase.TPut
+    for i := 0; i &lt; TESTRECORD; i++ {
+        putrowkey := strconv.Itoa(i)
+
+        tputArr = append(tputArr, &amp;hbase.TPut{
+            Row: []byte(putrowkey),
+            ColumnValues: []*hbase.TColumnValue{
+                {
+                    Family:    []byte(family),
+                    Qualifier: []byte(&quot;idoall.org&quot;),
+                    Value:     []byte(time.Now().String()),
+                },
+            }})
+    }
+
+    err = client.PutMultiple([]byte(table), tputArr)
+    if err != nil {
+        fmt.Printf(&quot;PutMultiple err:%s\n&quot;, err)
+    } else {
+        fmt.Print(&quot;PutMultiple done\n&quot;)
+    }
+
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //------------------GetMultiple-----------------------------
+    logformattitle = &quot;调用GetMultiple方法获取&quot; + strconv.Itoa(TESTRECORD) + &quot;数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    //
+    var tgets []*hbase.TGet
+    for i := 0; i &lt; TESTRECORD; i++ {
+        putrowkey := strconv.Itoa(i)
+        tgets = append(tgets, &amp;hbase.TGet{
+            Row: []byte(putrowkey)})
+    }
+    results, err := client.GetMultiple([]byte(table), tgets)
+    if err != nil {
+        fmt.Printf(&quot;GetMultiple err:%s&quot;, err)
+    } else {
+        fmt.Printf(&quot;GetMultiple Count:%d\n&quot;, len(results))
+        for _, k := range results {
+            fmt.Println(&quot;Rowkey:&quot; + string(k.Row))
+            for _, cv := range k.ColumnValues {
+                printscruct(cv)
+            }
+        }
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+    //-------------------TMutation
+    //TMutation包含一个TGet一个TPut，就不做测试了
+    //可以和MutateRow结合使用
+    //
+
+    //-------------------OpenScanner
+    logformattitle = &quot;调用OpenScanner方法&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    startrow := make([]byte, 4)
+    binary.LittleEndian.PutUint32(startrow, 1)
+    stoprow := make([]byte, 4)
+    binary.LittleEndian.PutUint32(stoprow, 10)
+
+    scanresultnum, err := client.OpenScanner([]byte(table), &amp;hbase.TScan{
+        StartRow: startrow,
+        StopRow:  stoprow,
+        //     FilterString: []byte(&quot;RowFilter(=, &#39;regexstring:00[1-3]00&#39;)&quot;),
+        //     FilterString: []byte(&quot;PrefixFilter(&#39;1407658495588-&#39;)&quot;),
+        Columns: []*hbase.TColumn{
+            {
+                Family:    []byte(family),
+                Qualifier: []byte(&quot;idoall.org&quot;),
+            },
+        },
+    })
+    if err != nil {
+        fmt.Printf(&quot;OpenScanner err:%s\n&quot;, err)
+    } else {
+        fmt.Printf(&quot;OpenScanner %d done\n&quot;, scanresultnum)
+        scanresult, err := client.GetScannerRows(scanresultnum, 100)
+        if err != nil {
+            fmt.Printf(&quot;GetScannerRows err:%s\n&quot;, err)
+        } else {
+            fmt.Printf(&quot;GetScannerRows %d done\n&quot;, len(scanresult))
+            for _, k := range scanresult {
+                fmt.Println(&quot;scan Rowkey:&quot; + string(k.Row))
+                for _, cv := range k.ColumnValues {
+                    printscruct(cv)
+                }
+            }
+        }
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //--closescanner
+    logformattitle = &quot;调用CloseScanner方法&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    err = client.CloseScanner(scanresultnum)
+    if err != nil {
+        fmt.Printf(&quot;CloseScanner err:%s\n&quot;, err)
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //-------------------GetScannerResults
+    logformattitle = &quot;调用GetScannerResults方法&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis() //
+    gsr, err := client.GetScannerResults([]byte(table), &amp;hbase.TScan{
+        StartRow: startrow,
+        StopRow:  stoprow,
+        //     FilterString: []byte(&quot;RowFilter(=, &#39;regexstring:00[1-3]00&#39;)&quot;),
+        //     FilterString: []byte(&quot;PrefixFilter(&#39;1407658495588-&#39;)&quot;),
+        Columns: []*hbase.TColumn{
+            {
+                Family:    []byte(family),
+                Qualifier: []byte(&quot;idoall.org&quot;),
+            },
+        }}, 100)
+    if err != nil {
+        fmt.Printf(&quot;GetScannerResults err:%s\n&quot;, err)
+    } else {
+        fmt.Printf(&quot;GetScannerResults %d done\n&quot;, len(gsr))
+        for _, k := range gsr {
+            fmt.Println(&quot;scan Rowkey:&quot; + string(k.Row))
+            for _, cv := range k.ColumnValues {
+                printscruct(cv)
+            }
+        }
+    }
+
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    //---------------DeleteMultiple--------------
+    logformattitle = &quot;调用DeleteMultiple方法删除&quot; + strconv.Itoa(TESTRECORD) + &quot;数据&quot;
+    fmt.Printf(logformatstr_, logformattitle)
+    tmpstartTime = currentTimeMillis()
+    var tdelArr []*hbase.TDelete
+    for i := 0; i &lt; TESTRECORD; i++ {
+        putrowkey := strconv.Itoa(i)
+        tdelArr = append(tdelArr, &amp;hbase.TDelete{
+            Row: []byte(putrowkey)})
+    }
+    r, err := client.DeleteMultiple([]byte(table), tdelArr)
+    if err != nil {
+        fmt.Printf(&quot;DeleteMultiple err:%s\n&quot;, err)
+    } else {
+        fmt.Printf(&quot;DeleteMultiple %d done\n&quot;, TESTRECORD)
+        fmt.Println(r)
+    }
+    tmpendTime = currentTimeMillis()
+    fmt.Printf(logformatstr, logformattitle, tmpendTime, tmpstartTime, (tmpendTime - tmpstartTime))
+
+    endTime := currentTimeMillis()
+    fmt.Printf(&quot;\nGolang调用总计用时:%d-%d=%d毫秒\n&quot;, endTime, startTime, (endTime - startTime))
+
+}
+
+func currentTimeMillis() int64 {
+    return time.Now().UnixNano() / 1000000
+}
+
+func printscruct(cv interface{}) {
+    switch reflect.ValueOf(cv).Interface().(type) {
+    case *hbase.TColumnValue:
+        s := reflect.ValueOf(cv).Elem()
+        typeOfT := s.Type()
+        //获取Thrift2中struct的field
+        for i := 0; i &lt; s.NumField(); i++ {
+            f := s.Field(i)
+            fileldformatstr := &quot;\t%d: %s(%s)= %v\n&quot;
+            switch f.Interface().(type) {
+            case []uint8:
+                fmt.Printf(fileldformatstr, i, typeOfT.Field(i).Name, f.Type(), string(f.Interface().([]uint8)))
+            case *int64:
+                var tempint64 int64
+                if f.Interface().(*int64) == nil {
+                    tempint64 = 0
+                } else {
+                    tempint64 = *f.Interface().(*int64)
+                }
+                fmt.Printf(fileldformatstr, i, typeOfT.Field(i).Name, f.Type(), tempint64)
+            default:
+                fmt.Print(&quot;I don&#39;t know&quot;)
+            }
+        }
+    default:
+        fmt.Print(&quot;I don&#39;t know&quot;)
+        fmt.Print(reflect.ValueOf(cv))
+    }
+
+}
+</code></pre>
+
+<hr/>
+
+<blockquote>
+<p>Step6中的代码摘自 <code>http://www.cnblogs.com/lion.net/p/3928453.html</code></p>
+</blockquote>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>

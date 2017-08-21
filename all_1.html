@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <div class="home">
+            <ul class="entry-list">
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/4/7">2016/4/7</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766122451393.html">[go基础总结]——bytes包</a></h2>
+                        <div itemprop="description">
+                            <p>总结下bytes包中的各操作。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/4/3">2016/4/3</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766124024042.html">grpc over tls</a></h2>
+                        <div itemprop="description">
+                            <p>grpc本身可以工作于常规的tcp模式，但出于数据交换的保密性及安全角度考虑，在其上加一层tls也是极好的。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/4/2">2016/4/2</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766125154205.html">go 编译时注入</a></h2>
+                        <div itemprop="description">
+                            <pre><code class="language-go">package main
+
+import (
+    &quot;fmt&quot;
+)
+
+var DEBUG = &quot;NO&quot;
+
+func main() {
+    fmt.Printf(&quot;DEBUG is %q\n&quot;, DEBUG)
+}
+</code></pre>
+
+<p>使用ldflags动态注入：</p>
+
+<pre><code>go build -ldflags &#39;-X main.DEBUG=YES&#39; test.go
+</code></pre>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/3/27">2016/3/27</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766126348503.html">公钥 密钥 证书整理</a></h2>
+                        <div itemprop="description">
+                            <p>-- 生成 RSA 私钥（带密码的）<br/>
+openssl genrsa -des3 -out rsa_private_key.pem 2048</p>
+
+<p>-- 生成 RSA 私钥（传统格式的）</p>
+
+<p>openssl genrsa -out rsa_private_key.pem 2048</p>
+
+<p>-- 将传统格式的私钥转换成 PKCS#8 格式的</p>
+
+<p>openssl pkcs8 -topk8 -inform PEM -in rsa_private_key.pem -outform PEM -nocrypt</p>
+
+<p>-- 生成 RSA 公钥</p>
+
+<p>openssl rsa -in rsa_private_key.pem -pubout -out rsa_public_key.pem</p>
+
+<p>-- 证书请求（可拿到第三方进行签名）<br/>
+openssl req –new -x509 -key rsa_private_key.pem -out server.pem</p>
+
+<p>-- 自签名证书<br/>
+openssl req -new -x509 -key rsa_private_key.pem -out ca.pem -days 1095</p>
+
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/3/1">2016/3/1</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845521346247.html">数据字典导出备忘</a></h2>
+                        <div itemprop="description">
+                            <p>遇到需要导出数据字典的情况，PowerDesign的导出方式不再细表。其实在有备注的情况下，可以直接从数据库中导出相应的字典。</p>
+
+<pre><code class="language-sql">SELECT  A.TABLE_NAME AS &quot;表名&quot;, A.COLUMN_NAME AS &quot;字段名&quot;, 
+DECODE(A.CHAR_LENGTH, 0, DECODE(A.DATA_SCALE, NULL, A.DATA_TYPE, A.DATA_TYPE||&#39;(&#39;||A.DATA_PRECISION||&#39;,&#39;||A.DATA_SCALE||&#39;)&#39;),
+A.DATA_TYPE||&#39;(&#39;||A.CHAR_LENGTH||&#39;)&#39;) as &quot;字段类型&quot;,A.DATA_DEFAULT AS &quot;默认值&quot;,
+A.NULLABLE AS &quot;能否为空&quot;, B.comments AS &quot;备注&quot;
+FROM sys.user_tab_columns A, sys.user_col_comments B
+WHERE A.table_name=B.table_name AND A.COLUMN_NAME=B.COLUMN_NAME AND A.TABLE_NAME IN (select table_name from user_tables)
+ORDER BY A.TABLE_NAME
+</code></pre>
+
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/2/24">2016/2/24</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845522344116.html">gRPC实战</a></h2>
+                        <div itemprop="description">
+                            <h4 id="toc_0"><a href="http://www.grpc.io" title="gRPC">gRPC</a>是Google出品的一款基于<a href="https://developers.google.com/protocol-buffers/" title="Protobuf">Protobuf</a>与HTTP/2的高性能开源RPC通信框架。</h4>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2016/2/6">2016/2/6</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845521808276.html">go reflect 反射探究</a></h2>
+                        <div itemprop="description">
+                            <blockquote>
+<p>反射在计算机的概念里是指一段程序审查自身结构的能力，主要通过类型进行审查。它是元编程的一种形式，同样也是引起混乱的重大来源。</p>
+</blockquote>
+
+<p>但同时，合理利用反射也为我们编程提供了非常灵活的操作方式及trick，让程序更好的运行。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2015/12/18">2015/12/18</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845523386570.html">MySQL主从配置</a></h2>
+                        <div itemprop="description">
+                            <p>记录下mysql的主从配置方案。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2015/11/15">2015/11/15</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845548132443.html">Linux中常用操作命令</a></h2>
+                        <div itemprop="description">
+                            <p>记录下Linux的常用命令，以备不时之需。</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
+                        <time class="updated" datetime="2015/11/6">2015/11/6</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14845524801245.html">JSONP札记</a></h2>
+                        <div itemprop="description">
+                            <p>web开发中数据的跨域传送一直让人苦恼，JSONP的出现，为web跨域传输提供了一把利器!</p>
+
+
+                            
+                                
+                            
+                        </div>
+                    </div>
+                </li>
+                
+            </ul>
+            <p class="paging">
+                
+                <a href="all.html">Previous</a>  &nbsp&nbsp&nbsp&nbsp&nbsp&nbsp 
+                 
+                <a href="all_2.html">Next</a> 
+            </p>
+        </div>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>
