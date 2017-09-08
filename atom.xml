@@ -3,12 +3,259 @@
   <title><![CDATA[1024coder]]></title>
   <link href="1024coder.com/atom.xml" rel="self"/>
   <link href="1024coder.com/"/>
-  <updated>2017-08-21T12:34:04+08:00</updated>
+  <updated>2017-09-08T16:06:13+08:00</updated>
   <id>1024coder.com/</id>
   <author>
     <name><![CDATA[]]></name>
   </author>
   <generator uri="http://www.coderforart.com/">CoderForArt</generator>
+  
+  <entry>
+    <title type="html"><![CDATA[gRPC TLS enhancement]]></title>
+    <link href="1024coder.com/15045822655932.html"/>
+    <updated>2017-09-05T11:31:05+08:00</updated>
+    <id>1024coder.com/15045822655932.html</id>
+    <content type="html">
+<![CDATA[<p>gRPC 客户端与服务端通信时，除了可以使用<code>WithInsecure()</code>，还可以选择客户端使用服务端证书（见之前的文章），有些需求下，需要分别管理客户端与服务端证书，记录下相关的实践过程。</p>
+
+<span id="more"></span><!-- more -->
+
+<ol>
+<li>CA</li>
+</ol>
+
+<p>a).生成根证书私钥(key文件)</p>
+
+<pre><code>openssl genrsa -aes256 -out ca.key 2048
+</code></pre>
+
+<p>b).生成根证书签发申请文件(csr文件)</p>
+
+<pre><code>openssl req -new -sha256 -key ca.key -out ca.csr
+</code></pre>
+
+<p>c).自签发根证书(crt文件)</p>
+
+<pre><code>openssl x509 -req -days 36500 -sha1 -extensions v3_ca -signkey ca.key -in ca.csr -out ca.crt
+</code></pre>
+
+<ol>
+<li>server</li>
+</ol>
+
+<p>a).生成根证书私钥(key文件)</p>
+
+<pre><code>openssl genrsa -aes256 -out server.key 2048
+</code></pre>
+
+<p>如果要移除 key 的密钥，则执行</p>
+
+<pre><code>openssl rsa -in server.key -out server.key
+</code></pre>
+
+<p>b).生成根证书签发申请文件(csr文件)</p>
+
+<pre><code>openssl req -new -sha256 -key server.key -out server.csr
+</code></pre>
+
+<p>c).使用根证书签发服务端证书</p>
+
+<pre><code>openssl ca -days 36500 -notext -md sha256 -keyfile ca.key -cert ca.crt -in server.csr -out server.crt 
+</code></pre>
+
+<ol>
+<li>client</li>
+</ol>
+
+<p>a).生成根证书私钥(key文件)</p>
+
+<pre><code>openssl genrsa -aes256 -out client.key 2048
+</code></pre>
+
+<p>如果要移除 key 的密钥，则执行</p>
+
+<pre><code>openssl rsa -in client.key -out client.key
+</code></pre>
+
+<p>b).生成根证书签发申请文件(csr文件)</p>
+
+<pre><code>openssl req -new -key client.key -out client.csr
+</code></pre>
+
+<p>c).使用根证书签发客户端证书</p>
+
+<pre><code>openssl ca -days 36500 -notext -md sha256 -keyfile ca.key -cert ca.crt -in client.csr -out client.crt
+</code></pre>
+
+<p>server.go</p>
+
+<pre><code>package main
+
+import (
+    &quot;crypto/x509&quot;
+    &quot;io/ioutil&quot;
+    &quot;crypto/tls&quot;
+    &quot;log&quot;
+    &quot;net&quot;
+    &quot;fmt&quot;
+
+    &quot;../../pb&quot;
+
+    &quot;google.golang.org/grpc/credentials&quot;
+    &quot;google.golang.org/grpc&quot;
+    &quot;golang.org/x/net/context&quot;
+    &quot;google.golang.org/grpc/peer&quot;
+)
+
+var (
+    crt  = &quot;server.crt&quot;
+    key  = &quot;server.key&quot;
+    ca   = &quot;ca.crt&quot;
+    addr = &quot;:8080&quot;
+)
+
+func main() {
+    // Load the certificates from disk
+    certificate, err := tls.LoadX509KeyPair(crt, key)
+    if err != nil {
+        log.Fatalf(&quot;could not load server key pair: %s&quot;, err)
+    }
+
+    // Create a certificate pool from the certificate authority
+    certPool := x509.NewCertPool()
+    ca, err := ioutil.ReadFile(ca)
+    if err != nil {
+        log.Fatalf(&quot;could not read ca certificate: %s&quot;, err)
+    }
+
+    // Append the client certificates from the CA
+    if ok := certPool.AppendCertsFromPEM(ca); !ok {
+        log.Fatalf(&quot;failed to append client certs&quot;)
+    }
+
+    // Create the channel to listen on
+    lis, err := net.Listen(&quot;tcp&quot;, addr)
+    if err != nil {
+        log.Fatalf(&quot;could not list on %s: %s&quot;, addr, err)
+    }
+
+    // Create the TLS credentials
+    creds := credentials.NewTLS(&amp;tls.Config{
+        ClientAuth:   tls.RequireAndVerifyClientCert,
+        Certificates: []tls.Certificate{certificate},
+        ClientCAs:    certPool,
+    })
+
+    // Create the gRPC server with the credentials
+    srv := grpc.NewServer(grpc.Creds(creds))
+
+    // Register the handler object
+    pb.RegisterProxyServiceServer(srv, &amp;proxy{})
+
+    // Serve and Listen
+    if err := srv.Serve(lis); err != nil {
+        log.Fatalf(&quot;grpc serve error: %s&quot;, err)
+    }
+}
+
+type proxy struct {
+}
+
+func (p *proxy) Echo(ctx context.Context, req *pb.Payload) (*pb.Payload, error) {
+    pr, ok := peer.FromContext(ctx)
+
+    if ok {
+        fmt.Printf(&quot;%#v\n&quot;, pr.AuthInfo)
+    }
+
+    return req, nil
+}
+
+func (p *proxy) Pipeline(stream pb.ProxyService_PipelineServer) error {
+    return nil
+}
+
+func (p *proxy) PipelineUDP(stream pb.ProxyService_PipelineUDPServer) error {
+    return nil
+}
+
+</code></pre>
+
+<p>client.go</p>
+
+<pre><code>package main
+
+import (
+    &quot;crypto/x509&quot;
+    &quot;io/ioutil&quot;
+    &quot;crypto/tls&quot;
+    &quot;log&quot;
+
+    &quot;../../pb&quot;
+
+    &quot;google.golang.org/grpc/credentials&quot;
+    &quot;google.golang.org/grpc&quot;
+    &quot;golang.org/x/net/context&quot;
+)
+
+var (
+    crt  = &quot;client.crt&quot;
+    key  = &quot;client.key&quot;
+    ca   = &quot;ca.crt&quot;
+    addr = &quot;:8080&quot;
+)
+
+func main() {
+    // Load the client certificates from disk
+    certificate, err := tls.LoadX509KeyPair(crt, key)
+    if err != nil {
+        log.Fatalf(&quot;could not load client key pair: %s&quot;, err)
+    }
+
+    // Create a certificate pool from the certificate authority
+    certPool := x509.NewCertPool()
+    ca, err := ioutil.ReadFile(ca)
+    if err != nil {
+        log.Fatalf(&quot;could not read ca certificate: %s&quot;, err)
+    }
+
+    // Append the certificates from the CA
+    if ok := certPool.AppendCertsFromPEM(ca); !ok {
+        log.Fatalf(&quot;failed to append ca certs&quot;)
+    }
+
+    creds := credentials.NewTLS(&amp;tls.Config{
+        ServerName:   &quot;xxxx-server&quot;,
+        Certificates: []tls.Certificate{certificate},
+        RootCAs:      certPool,
+        //InsecureSkipVerify: true,
+    })
+
+    // Create a connection with the TLS credentials
+    conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
+    if err != nil {
+        log.Fatalf(&quot;could not dial %s: %s&quot;, addr, err)
+    }
+
+    // Initialize the client and make the request
+    client := pb.NewProxyServiceClient(conn)
+    pong, err := client.Echo(context.Background(), &amp;pb.Payload{Data: []byte{1, 0, 2, 4}})
+    if err != nil {
+        log.Fatalf(&quot;could not ping %s: %s&quot;, addr, err)
+    }
+
+    // Log the ping
+    log.Printf(&quot;%s\n&quot;, pong.String())
+}
+
+</code></pre>
+
+<blockquote>
+<p><a href="https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html">https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html</a></p>
+</blockquote>
+]]>
+    </content>
+  </entry>
   
   <entry>
     <title type="html"><![CDATA[Ubuntu 内核升级 + tcp_bbr 开启]]></title>
@@ -1308,6 +1555,9 @@ func Debug() {
 
 <p>go build -tags debug<br/>
 则会输出调试信息</p>
+
+<p>编译时缩小 go 的二进制文件体积<br/>
+<code>go build -ldflags &quot;-s -w&quot;</code>，-s 会strip掉符号表， 但是这样就没办法在gdb里查看行号和文件了。 -w 则会让连接器放弃所有debug信息。如果需要进一步压缩，那么需要将生成的二进制文件通过 upx 啦。</p>
 ]]>
     </content>
   </entry>
@@ -1747,90 +1997,6 @@ sudo chmod [u所属用户  g所属组  o其他用户  a所有用户]  [+增加�
 netstat -anp 显示系统端口使用情况
 lsof -i:端口号 查看某一端口的占用情况
 </code></pre>
-]]>
-    </content>
-  </entry>
-  
-  <entry>
-    <title type="html"><![CDATA[JSONP札记]]></title>
-    <link href="1024coder.com/14845524801245.html"/>
-    <updated>2017-01-16T15:41:20+08:00</updated>
-    <id>1024coder.com/14845524801245.html</id>
-    <content type="html">
-<![CDATA[<p>web开发中数据的跨域传送一直让人苦恼，JSONP的出现，为web跨域传输提供了一把利器!</p>
-
-<span id="more"></span><!-- more -->
-
-<p>这是啥？有啥用？</p>
-
-<blockquote>
-<p>JSONP(JSON with Padding)是JSON的一种“使用模式”，可用于解决主流浏览器的跨域数据访问的问题。</p>
-</blockquote>
-
-<p>怎么用？</p>
-
-<pre><code class="language-html">&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-    &lt;title&gt;Top Customers with Callback&lt;/title&gt;
-    &lt;script type=&quot;text/javascript&quot; src=&quot;http://cdn.bootcss.com/jquery/2.1.4/jquery.min.js&quot;&gt;&lt;/script&gt;
-&lt;/head&gt;
-&lt;body&gt;
-&lt;div id=&quot;customerList&quot;&gt;
-&lt;/div&gt;
-&lt;script type=&quot;text/javascript&quot;&gt;
-    function onCustomerLoaded(result) {
-        var html = &#39;&lt;ul&gt;&#39;;
-        for (var i = 0; i &lt; result.length; i++) {
-            html += &#39;&lt;li&gt;&#39; + result[i] + &#39;&lt;/li&gt;&#39;;
-        }
-        html += &#39;&lt;/ul&gt;&#39;;
-        document.getElementById(&#39;customerList&#39;).innerHTML = html;
-    }
-&lt;/script&gt;
-&lt;script type=&quot;text/javascript&quot; src=&quot;http://127.0.0.1:8081/jsonp&quot;&gt;&lt;/script&gt;
-
-&lt;script type=&quot;text/javascript&quot; src=&quot;http://127.0.0.1:8081/jsonp?callback=onCustomerLoaded&quot;&gt;&lt;/script&gt;
-
-&lt;script type=&quot;text/javascript&quot;&gt;
-    $.ajax({
-        &#39;url&#39;: &#39;http://127.0.0.1:8081/jsonp&#39;,
-        &#39;type&#39;: &#39;POST&#39;,
-        &#39;dataType&#39;: &#39;JSONP&#39;,
-        &#39;jsonp&#39;: &#39;callback&#39;,
-        &#39;error&#39;: function (e) {
-            alert(e.repsonseText);
-        },
-        &#39;success&#39;: function (data) {
-            alert(data);
-        }
-    });
-&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre>
-
-<p>服务端只需要返回callback对应func名称的字符串及数据拼接即可。用熟悉的go语言结合beego来实现这部分：</p>
-
-<pre><code class="language-go">func (this *JSONP) Get() {
-    this.TplNames = &quot;jsonp.html&quot;
-    this.Data[&quot;jsonp&quot;] = []int{1,2,3}
-    this.ServeJsonp()
-}
-</code></pre>
-
-<p><code>jsonp.html</code>代码中内容如下：</p>
-
-<pre><code class="language-javascript">alert(&quot;query中没有callback!&quot;)
-</code></pre>
-
-<p>到底可不可以POST：可以看到上面的代码中，jquery ajax的部分使用了POST方法，那是不是说可以将数据放到requset的body中发送至服务器？<br/>
-答案：如果被请求的url与页面同源，则用POST方法（同源本来就可以POST方法调用，干嘛费这个劲搞这个）。。。<br/>
-非同源的时候，这部分会转换为GET方法执行。</p>
-
-<p>JSONP的局限性：数据要放到url中来传输，相比于传统的POST少了些许灵活性。</p>
-
-<p>JSONP的好处：方便调用。</p>
 ]]>
     </content>
   </entry>

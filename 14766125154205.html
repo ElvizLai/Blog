@@ -120,6 +120,9 @@ func Debug() {
 <p>go build -tags debug<br/>
 则会输出调试信息</p>
 
+<p>编译时缩小 go 的二进制文件体积<br/>
+<code>go build -ldflags &quot;-s -w&quot;</code>，-s 会strip掉符号表， 但是这样就没办法在gdb里查看行号和文件了。 -w 则会让连接器放弃所有debug信息。如果需要进一步压缩，那么需要将生成的二进制文件通过 upx 啦。</p>
+
             </div>
             <div>
                 

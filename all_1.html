@@ -56,6 +56,32 @@
                 
                 <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
                     <div class="entry-meta">
+                        <time class="updated" datetime="2016/4/13">2016/4/13</time>
+                    </div>
+                    <div class="detail">
+                        <h2 itemprop="name"><a itemprop="url" href="14766121755274.html">go sql 之 Query</a></h2>
+                        <div itemprop="description">
+                            <p>1、使用tx时，rows没有close是否会导致有未被释放的数据库连接？<br/>
+当最后执行tx.Commit()或tx.Rollback()时，相应的连接会被关闭。不会存在未被释放的情况。但仍然建议养成关闭的好习惯。</p>
+
+<p>2、rows.Err()的作用是什么？<br/>
+Err()的相关注释是这样写的：Err returns the error, if any, that was encountered during iteration.<br/>
+但请注意，这些错误，仅与迭代过程中rows错误相关，比如在下一个Next()时，数据库出问题了，或者tx已经结束，tx发生错误。<br/>
+与Scan()处产生的错误没有任何关联。<br/>
+所以，这两部分错误应该单独分别处理。</p>
+
+<p>3、rows.Next()中进行tx.Exec(update)操作？<br/>
+如果rows.Next()是由tx发起的，update语句中包含$1转译，则会报错。此时update相关，应该放到Next循环之外进行。<br/>
+如果进行无转移update，则允许该操作。<br/>
+如果rows.Next()是有DB发起的，则以上操作都是允许的。</p>
+
+                            
+                        </div>
+                    </div>
+                </li>
+                
+                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
+                    <div class="entry-meta">
                         <time class="updated" datetime="2016/4/7">2016/4/7</time>
                     </div>
                     <div class="detail">
@@ -240,23 +266,6 @@ ORDER BY A.TABLE_NAME
                         <h2 itemprop="name"><a itemprop="url" href="14845548132443.html">Linux中常用操作命令</a></h2>
                         <div itemprop="description">
                             <p>记录下Linux的常用命令，以备不时之需。</p>
-
-
-                            
-                                
-                            
-                        </div>
-                    </div>
-                </li>
-                
-                <li class="entry-item" itemscope="" itemtype="http://schema.org/Article">
-                    <div class="entry-meta">
-                        <time class="updated" datetime="2015/11/6">2015/11/6</time>
-                    </div>
-                    <div class="detail">
-                        <h2 itemprop="name"><a itemprop="url" href="14845524801245.html">JSONP札记</a></h2>
-                        <div itemprop="description">
-                            <p>web开发中数据的跨域传送一直让人苦恼，JSONP的出现，为web跨域传输提供了一把利器!</p>
 
 
                             

@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>
+         gRPC TLS enhancement - 1024coder 
+    </title>
+
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+
+    <link rel="stylesheet" type="text/css" href="asset/yue.css">
+    <link rel="stylesheet" type="text/css" href="asset/main.css">
+    <link rel="stylesheet" type="text/css" href="asset/tomorrow.css">
+
+    <link rel="alternate" type="application/atom+xml" href="atom.xml" title="1024coder">
+
+    <script src="asset/highlight.pack.js"></script>
+    <script>hljs.initHighlightingOnLoad();</script>
+</head>
+
+<body>
+    <header class="yue site-header">
+        <div class="wrapper">
+            <a class="site-title" href="index.html">1024coder</a>
+            <nav class="site-nav">
+                <a href="#" class="menu-icon">
+                    
+                    <svg viewBox="0 0 18 15">
+                        <path fill="#424242" d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.031C17.335,0,18,0.665,18,1.484L18,1.484z"
+                        />
+                        <path fill="#424242" d="M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0c0-0.82,0.665-1.484,1.484-1.484 h15.031C17.335,6.031,18,6.696,18,7.516L18,7.516z"
+                        />
+                        <path fill="#424242" d="M18,13.516C18,14.335,17.335,15,16.516,15H1.484C0.665,15,0,14.335,0,13.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.031C17.335,12.031,18,12.696,18,13.516L18,13.516z"
+                        />
+                    </svg>
+
+                </a>
+                <div class="trigger">
+                    
+                        <a class="page-link" href="archives.html">Archives</a>
+                    
+                        <a class="page-link" href="about.html">About</a>
+                    
+                </div>
+            </nav>
+        </div>
+    </header>
+</body>
+
+</html> <div class="page-content yue">
+    <div class="wrapper">
+        <article class="post" itemscope itemtype="http://schema.org/BlogPosting">
+            <header class="post-header">
+                <h1 class="post-title" itemprop="name headline">gRPC TLS enhancement</h1>
+                <p class="post-meta">
+                    <time class="post-time" datetime="2017-09-05T11:31:05+08:00" itemprop="datePublished">2017/9/5</time>
+                </p>
+            </header>
+            <div class="post-content" itemprop="articleBody">
+                <p>gRPC 客户端与服务端通信时，除了可以使用<code>WithInsecure()</code>，还可以选择客户端使用服务端证书（见之前的文章），有些需求下，需要分别管理客户端与服务端证书，记录下相关的实践过程。</p>
+
+<span id="more"></span><!-- more -->
+
+<ol>
+<li>CA</li>
+</ol>
+
+<p>a).生成根证书私钥(key文件)</p>
+
+<pre><code>openssl genrsa -aes256 -out ca.key 2048
+</code></pre>
+
+<p>b).生成根证书签发申请文件(csr文件)</p>
+
+<pre><code>openssl req -new -sha256 -key ca.key -out ca.csr
+</code></pre>
+
+<p>c).自签发根证书(crt文件)</p>
+
+<pre><code>openssl x509 -req -days 36500 -sha1 -extensions v3_ca -signkey ca.key -in ca.csr -out ca.crt
+</code></pre>
+
+<ol>
+<li>server</li>
+</ol>
+
+<p>a).生成根证书私钥(key文件)</p>
+
+<pre><code>openssl genrsa -aes256 -out server.key 2048
+</code></pre>
+
+<p>如果要移除 key 的密钥，则执行</p>
+
+<pre><code>openssl rsa -in server.key -out server.key
+</code></pre>
+
+<p>b).生成根证书签发申请文件(csr文件)</p>
+
+<pre><code>openssl req -new -sha256 -key server.key -out server.csr
+</code></pre>
+
+<p>c).使用根证书签发服务端证书</p>
+
+<pre><code>openssl ca -days 36500 -notext -md sha256 -keyfile ca.key -cert ca.crt -in server.csr -out server.crt 
+</code></pre>
+
+<ol>
+<li>client</li>
+</ol>
+
+<p>a).生成根证书私钥(key文件)</p>
+
+<pre><code>openssl genrsa -aes256 -out client.key 2048
+</code></pre>
+
+<p>如果要移除 key 的密钥，则执行</p>
+
+<pre><code>openssl rsa -in client.key -out client.key
+</code></pre>
+
+<p>b).生成根证书签发申请文件(csr文件)</p>
+
+<pre><code>openssl req -new -key client.key -out client.csr
+</code></pre>
+
+<p>c).使用根证书签发客户端证书</p>
+
+<pre><code>openssl ca -days 36500 -notext -md sha256 -keyfile ca.key -cert ca.crt -in client.csr -out client.crt
+</code></pre>
+
+<p>server.go</p>
+
+<pre><code>package main
+
+import (
+    &quot;crypto/x509&quot;
+    &quot;io/ioutil&quot;
+    &quot;crypto/tls&quot;
+    &quot;log&quot;
+    &quot;net&quot;
+    &quot;fmt&quot;
+
+    &quot;../../pb&quot;
+
+    &quot;google.golang.org/grpc/credentials&quot;
+    &quot;google.golang.org/grpc&quot;
+    &quot;golang.org/x/net/context&quot;
+    &quot;google.golang.org/grpc/peer&quot;
+)
+
+var (
+    crt  = &quot;server.crt&quot;
+    key  = &quot;server.key&quot;
+    ca   = &quot;ca.crt&quot;
+    addr = &quot;:8080&quot;
+)
+
+func main() {
+    // Load the certificates from disk
+    certificate, err := tls.LoadX509KeyPair(crt, key)
+    if err != nil {
+        log.Fatalf(&quot;could not load server key pair: %s&quot;, err)
+    }
+
+    // Create a certificate pool from the certificate authority
+    certPool := x509.NewCertPool()
+    ca, err := ioutil.ReadFile(ca)
+    if err != nil {
+        log.Fatalf(&quot;could not read ca certificate: %s&quot;, err)
+    }
+
+    // Append the client certificates from the CA
+    if ok := certPool.AppendCertsFromPEM(ca); !ok {
+        log.Fatalf(&quot;failed to append client certs&quot;)
+    }
+
+    // Create the channel to listen on
+    lis, err := net.Listen(&quot;tcp&quot;, addr)
+    if err != nil {
+        log.Fatalf(&quot;could not list on %s: %s&quot;, addr, err)
+    }
+
+    // Create the TLS credentials
+    creds := credentials.NewTLS(&amp;tls.Config{
+        ClientAuth:   tls.RequireAndVerifyClientCert,
+        Certificates: []tls.Certificate{certificate},
+        ClientCAs:    certPool,
+    })
+
+    // Create the gRPC server with the credentials
+    srv := grpc.NewServer(grpc.Creds(creds))
+
+    // Register the handler object
+    pb.RegisterProxyServiceServer(srv, &amp;proxy{})
+
+    // Serve and Listen
+    if err := srv.Serve(lis); err != nil {
+        log.Fatalf(&quot;grpc serve error: %s&quot;, err)
+    }
+}
+
+type proxy struct {
+}
+
+func (p *proxy) Echo(ctx context.Context, req *pb.Payload) (*pb.Payload, error) {
+    pr, ok := peer.FromContext(ctx)
+
+    if ok {
+        fmt.Printf(&quot;%#v\n&quot;, pr.AuthInfo)
+    }
+
+    return req, nil
+}
+
+func (p *proxy) Pipeline(stream pb.ProxyService_PipelineServer) error {
+    return nil
+}
+
+func (p *proxy) PipelineUDP(stream pb.ProxyService_PipelineUDPServer) error {
+    return nil
+}
+
+</code></pre>
+
+<p>client.go</p>
+
+<pre><code>package main
+
+import (
+    &quot;crypto/x509&quot;
+    &quot;io/ioutil&quot;
+    &quot;crypto/tls&quot;
+    &quot;log&quot;
+
+    &quot;../../pb&quot;
+
+    &quot;google.golang.org/grpc/credentials&quot;
+    &quot;google.golang.org/grpc&quot;
+    &quot;golang.org/x/net/context&quot;
+)
+
+var (
+    crt  = &quot;client.crt&quot;
+    key  = &quot;client.key&quot;
+    ca   = &quot;ca.crt&quot;
+    addr = &quot;:8080&quot;
+)
+
+func main() {
+    // Load the client certificates from disk
+    certificate, err := tls.LoadX509KeyPair(crt, key)
+    if err != nil {
+        log.Fatalf(&quot;could not load client key pair: %s&quot;, err)
+    }
+
+    // Create a certificate pool from the certificate authority
+    certPool := x509.NewCertPool()
+    ca, err := ioutil.ReadFile(ca)
+    if err != nil {
+        log.Fatalf(&quot;could not read ca certificate: %s&quot;, err)
+    }
+
+    // Append the certificates from the CA
+    if ok := certPool.AppendCertsFromPEM(ca); !ok {
+        log.Fatalf(&quot;failed to append ca certs&quot;)
+    }
+
+    creds := credentials.NewTLS(&amp;tls.Config{
+        ServerName:   &quot;xxxx-server&quot;,
+        Certificates: []tls.Certificate{certificate},
+        RootCAs:      certPool,
+        //InsecureSkipVerify: true,
+    })
+
+    // Create a connection with the TLS credentials
+    conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(creds))
+    if err != nil {
+        log.Fatalf(&quot;could not dial %s: %s&quot;, addr, err)
+    }
+
+    // Initialize the client and make the request
+    client := pb.NewProxyServiceClient(conn)
+    pong, err := client.Echo(context.Background(), &amp;pb.Payload{Data: []byte{1, 0, 2, 4}})
+    if err != nil {
+        log.Fatalf(&quot;could not ping %s: %s&quot;, addr, err)
+    }
+
+    // Log the ping
+    log.Printf(&quot;%s\n&quot;, pong.String())
+}
+
+</code></pre>
+
+<blockquote>
+<p><a href="https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html">https://bbengfort.github.io/programmer/2017/03/03/secure-grpc.html</a></p>
+</blockquote>
+
+            </div>
+            <div>
+                
+                
+                
+            </div>
+        </article>
+    </div>
+</div>  <footer id="footer" class="yue">
+    <div class="wrapper">
+        <p>© Copyright 2014 - 2017 by <a href="https://twitter.com/Tisoga">@Tisoga</a> and powered by <a href="http://zh.mweb.im/">Mweb</a></p>
+    </div>
+</footer>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.1/MathJax.js?config=TeX-AMS-MML_HTMLorMML"></script><script type="text/x-mathjax-config">MathJax.Hub.Config({TeX: { equationNumbers: { autoNumber: "AMS" } }});</script>
